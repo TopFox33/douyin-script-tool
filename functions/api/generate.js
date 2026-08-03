@@ -26,7 +26,7 @@ export async function onRequest(context) {
   if (!apiKey) {
     return new Response(
       JSON.stringify({
-        error: "Server API Key not configured",
+        error: "服务端未配置 API Key，请联系管理员",
         detail: "请在 Cloudflare Pages 控制台 → 设置 → 环境变量 中添加 DEEPSEEK_API_KEY",
       }),
       { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
@@ -90,7 +90,7 @@ export async function onRequest(context) {
         model: "deepseek-chat",
         messages: [{ role: "user", content: prompt }],
         temperature: 0.85,
-        max_tokens: 4000,
+        max_tokens: 2000,
       }),
       signal: controller.signal,
     });
