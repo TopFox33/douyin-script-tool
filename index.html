@@ -381,10 +381,15 @@
             if(raw.length<=1) raw=content.split(/\n---\n/).filter(s=>s.trim());
             return raw.map((r,idx)=>{
                 const s={};const lines=r.trim().split('\n');
-                lines.forEach(line=>{
-                    const m1=line.match(/【3秒钩子】[：:]?\s*(.*)/),m2=line.match(/【痛点共鸣】[：:]?\s*(.*)/),m3=line.match(/【解决方案】[：:]?\s*(.*)/),m4=line.match(/【信任背书】[：:]?\s*(.*)/),m5=line.match(/【行动指令】[：:]?\s*(.*)/),m6=line.match(/【拍摄建议】[：:]?\s*(.*)/);
-                    if(m1)s.hook=m1[1];else if(m2)s.pain=m2[1];else if(m3)s.solution=m3[1];else if(m4)s.trust=m4[1];else if(m5)s.action=m5[1];else if(m6)s.tip=m6[1];
-                });
+                let curKey=null,curVal=[];
+                const fields={hook:'【3秒钩子】',pain:'【痛点共鸣】',solution:'【解决方案】',trust:'【信任背书】',action:'【行动指令】',tip:'【拍摄建议】'};
+                for(const line of lines){
+                    let matched=null;
+                    for(const[k,v]of Object.entries(fields)){if(line.includes(v)){matched=k;break;}}
+                    if(matched){if(curKey&&curVal.length){s[curKey]=curVal.join('\n').trim();}curKey=matched;curVal=[];}
+                    else if(curKey){curVal.push(line);}
+                }
+                if(curKey&&curVal.length)s[curKey]=curVal.join('\n').trim();
                 if(!s.hook)s.content=r.trim();
                 return{id:idx+1,...s};
             });
