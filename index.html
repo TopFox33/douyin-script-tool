@@ -262,7 +262,7 @@
     </div>
 
     <!-- 次数用完遮罩 -->
-    <div id="quotaModal" class="modal-overlay hidden">
+    <div id="quotaModal" class="modal-overlay hidden" onclick="if(event.target===this)closeQuotaModal()">
         <div class="modal-card glass-card rounded-2xl p-6 md:p-8 max-w-sm w-full text-center">
             <div class="text-5xl mb-4">🎬</div>
             <h2 class="text-xl font-bold text-white mb-2">今日免费次数已用完</h2>
@@ -283,16 +283,16 @@
         updateStatsDisplay(); renderHistory();
 
         // ============ 每日配额 ============
-        const DAILY_LIMIT=3, QUOTA_KEY='dailyQuota';
-        function resetQuotaIfNeeded(){const q=JSON.parse(localStorage.getItem(QUOTA_KEY)||'{}');if(q.date!==today){localStorage.setItem(QUOTA_KEY,JSON.stringify({date:today,used:0}));}}
-        function getQuotaUsed(){resetQuotaIfNeeded();return JSON.parse(localStorage.getItem(QUOTA_KEY)).used;}
+        const DAILY_LIMIT=3;
+        function getQuotaKey(){return 'douyin_quota_'+new Date().toISOString().slice(0,10);}
+        function getQuotaUsed(){return parseInt(localStorage.getItem(getQuotaKey())||'0');}
         function hasCustomKey(){return !!document.getElementById('apiKey').value.trim();}
         function checkQuota(){
-            if(hasCustomKey())return true;   // 用自己的Key不受限
-            if(!hasBackend)return true;      // 演示模式不受限
+            if(hasCustomKey())return true;
+            if(!hasBackend)return true;
             return getQuotaUsed()<DAILY_LIMIT;
         }
-        function useQuota(){if(hasCustomKey()||!hasBackend)return;const q=JSON.parse(localStorage.getItem(QUOTA_KEY));q.used++;localStorage.setItem(QUOTA_KEY,JSON.stringify(q));updateQuotaDisplay();}
+        function useQuota(){if(hasCustomKey()||!hasBackend)return;const k=getQuotaKey();localStorage.setItem(k,(parseInt(localStorage.getItem(k)||'0')+1)+'');updateQuotaDisplay();}
         function updateQuotaDisplay(){
             const used=getQuotaUsed(),remain=DAILY_LIMIT-used,pct=(remain/DAILY_LIMIT)*100;
             document.getElementById('quotaLabel').textContent=`剩余 ${remain}/${DAILY_LIMIT} 次`;
@@ -486,6 +486,7 @@
         // ============ 配额模态 ============
         function copyWechat(){navigator.clipboard.writeText('iiixh_').then(()=>{showToast('微信号已复制：iiixh_','success');closeQuotaModal();}).catch(()=>showToast('复制失败：iiixh_','error'));}
         function closeQuotaModal(){document.getElementById('quotaModal').classList.add('hidden');}
+        document.addEventListener('keydown',e=>{if(e.key==='Escape')closeQuotaModal();});
 
         // 快捷操作
         document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.ctrlKey)generateScripts();});
