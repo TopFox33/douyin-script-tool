@@ -386,7 +386,13 @@
                 for(const line of lines){
                     let matched=null;
                     for(const[k,v]of Object.entries(fields)){if(line.includes(v)){matched=k;break;}}
-                    if(matched){if(curKey&&curVal.length){s[curKey]=curVal.join('\n').trim();}curKey=matched;curVal=[];}
+                    if(matched){
+                        if(curKey&&curVal.length){s[curKey]=curVal.join('\n').trim();}
+                        curKey=matched;curVal=[];
+                        // 提取同行内容
+                        const afterLabel=line.substring(line.indexOf(fields[matched])+fields[matched].length).replace(/^[：:]\s*/,'').trim();
+                        if(afterLabel)curVal.push(afterLabel);
+                    }
                     else if(curKey){curVal.push(line);}
                 }
                 if(curKey&&curVal.length)s[curKey]=curVal.join('\n').trim();
