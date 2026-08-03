@@ -1,9 +1,7 @@
 // Cloudflare Pages Function — /api/generate
-// Vercel → Cloudflare Pages 迁移版
 export async function onRequest(context) {
   const { request, env } = context;
 
-  // CORS
   const corsHeaders = {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
@@ -21,109 +19,74 @@ export async function onRequest(context) {
     });
   }
 
-  // Cloudflare Pages 用 context.env，不是 process.env
   const apiKey = env.DEEPSEEK_API_KEY;
   if (!apiKey) {
     return new Response(
-      JSON.stringify({
-        error: "服务端未配置 API Key，请联系管理员",
-        detail: "请在 Cloudflare Pages 控制台 → 设置 → 环境变量 中添加 DEEPSEEK_API_KEY",
-      }),
+      JSON.stringify({ error: "服务端未配置 API Key", detail: "请在 Cloudflare Pages 设置环境变量 DEEPSEEK_API_KEY" }),
       { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   }
 
   let body;
-  try {
-    body = await request.json();
-  } catch {
-    return new Response(JSON.stringify({ error: "请求格式错误，需要 JSON" }), {
-      status: 400,
-      headers: { "Content-Type": "application/json", ...corsHeaders },
+  try { body = await request.json(); } catch {
+    return new Response(JSON.stringify({ error: "请求格式错误" }), {
+      status: 400, headers: { "Content-Type": "application/json", ...corsHeaders },
     });
   }
 
   const { industry, sellingPoint, targetAudience, duration, formula } = body;
   if (!industry || !sellingPoint) {
     return new Response(JSON.stringify({ error: "请填写行业和产品卖点" }), {
-      status: 400,
-      headers: { "Content-Type": "application/json", ...corsHeaders },
+      status: 400, headers: { "Content-Type": "application/json", ...corsHeaders },
     });
   }
 
-  const prompt = `你是一位抖音顶级文案策划，擅长写高转化口播脚本。请根据以下信息，生成5条口播脚本：
+  const prompt = `你是抖音口播脚本专家。生成5条口播脚本，每条不超过120字。
 
-【行业】：${industry || ''}
-【产品/卖点】：${sellingPoint || ''}
-【目标人群】：${targetAudience || '泛人群'}
-【视频时长】：${duration || '30秒'}
-【爆款公式】：${formula || '智能匹配'}
+行业：${industry}
+产品：${sellingPoint || ''}
+人群：${targetAudience || '泛人群'}
+时长：${duration || '30秒'}
+公式：${formula || '智能匹配'}
 
-【输出要求】
-每条脚本必须包含以下结构：
-1. 【3秒钩子】：前3秒必须抛出悬念/冲突/反认知
-2. 【痛点共鸣】：描述目标人群的具体困扰
-3. 【解决方案】：自然植入产品卖点，不硬广
-4. 【信任背书】：用数据、对比、案例建立可信度
-5. 【行动指令】：明确告诉用户点赞/关注/评论/购买
-6. 【拍摄建议】：语气、表情、画面、BGM建议
+每条包含这6个标签（内容紧跟标签后，不换行）：
+【3秒钩子】一句话抓注意力
+【痛点共鸣】描述困扰
+【解决方案】植入卖点
+【信任背书】数据对比
+【行动指令】引导互动
+【拍摄建议】语气BGM
 
-【风格要求】
-- 口语化，像朋友聊天，不要用书面语
-- 每句话控制在15字以内，适合口播
-- 情绪递进：从好奇→共鸣→信任→行动
-- 避免"家人们""绝绝子"等过度网络用语
-
-请直接输出5条完整脚本，每条之间用"---SCRIPT_SPLIT---"分隔。`;
+5条脚本之间用 --- 分隔，不要编号。`;
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 20000);
+  const timeout = setTimeout(() => controller.abort(), 25000);
 
   try {
     const dsResp = await fetch("https://api.deepseek.com/chat/completions", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: "deepseek-chat",
-        messages: [{ role: "user", content: prompt }],
-        temperature: 0.85,
-        max_tokens: 2000,
-      }),
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({ model: "deepseek-chat", messages: [{ role: "user", content: prompt }], temperature: 0.85, max_tokens: 3000 }),
       signal: controller.signal,
     });
     clearTimeout(timeout);
 
     if (!dsResp.ok) {
       const errData = await dsResp.json().catch(() => ({}));
-      return new Response(
-        JSON.stringify({
-          error: errData.error?.message || `DeepSeek API 返回错误（HTTP ${dsResp.status}）`,
-          detail: JSON.stringify(errData).slice(0, 300),
-        }),
-        { status: dsResp.status, headers: { "Content-Type": "application/json", ...corsHeaders } }
-      );
+      return new Response(JSON.stringify({ error: errData.error?.message || `DeepSeek ${dsResp.status}` }), {
+        status: dsResp.status, headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
     }
 
     const data = await dsResp.json();
     return new Response(JSON.stringify(data), {
-      status: 200,
-      headers: { "Content-Type": "application/json", ...corsHeaders },
+      status: 200, headers: { "Content-Type": "application/json", ...corsHeaders },
     });
   } catch (err) {
     clearTimeout(timeout);
     if (err.name === "AbortError") {
-      return new Response(JSON.stringify({ error: "请求超时（20秒），DeepSeek API 响应过慢" }), {
-        status: 504,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
+      return new Response(JSON.stringify({ error: "请求超时，请重试" }), { status: 504, headers: { "Content-Type": "application/json", ...corsHeaders } });
     }
-    console.error("API Error:", err);
-    return new Response(
-      JSON.stringify({ error: err.message || "Internal server error", type: err.name }),
-      { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
-    );
+    return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } });
   }
 }
