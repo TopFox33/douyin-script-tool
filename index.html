@@ -288,8 +288,11 @@
         let authToken = localStorage.getItem('foxToken') || '';
         let codeInfo = JSON.parse(localStorage.getItem('foxCodeInfo')||'null');
         function getFingerprint() {
-          const fp = [navigator.userAgent, screen.width+'x'+screen.height, Intl.DateTimeFormat().resolvedOptions().timeZone].join('|');
-          return btoa(fp).replace(/[^a-zA-Z0-9]/g,'').substring(0,32);
+          const s = [navigator.userAgent, screen.width + 'x' + screen.height, Intl.DateTimeFormat().resolvedOptions().timeZone].join('|');
+          // btoa fails on non-ASCII, encode safely
+          let b = '';
+          for (let i = 0; i < s.length; i++) b += String.fromCharCode(s.charCodeAt(i) & 0xff);
+          return btoa(b).replace(/[^a-zA-Z0-9]/g, '').substring(0, 32);
         }
         function saveAuth(token, info) {
           authToken = token;
