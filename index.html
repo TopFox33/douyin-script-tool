@@ -37,7 +37,7 @@ input:focus,textarea:focus{border-color:#22c55e;box-shadow:0 0 0 2px rgba(34,197
 <div class="max-w-3xl mx-auto px-4 py-8">
   <header class="text-center mb-8">
     <h1 class="text-3xl font-bold" style="color:#059669">Fox脚本</h1>
-    <p class="text-gray-500 mt-2">输入行业和卖点，AI 自动生成口播脚本</p>
+    <p class="text-gray-500 mt-2">输入行业和卖点，AI 自动生成视频脚本</p>
   </header>
 
   <div class="card p-6 mb-6">
@@ -86,6 +86,23 @@ input:focus,textarea:focus{border-color:#22c55e;box-shadow:0 0 0 2px rgba(34,197
   </div>
 
   <div id="results" class="hidden space-y-4"></div>
+
+  <div class="card p-5 mt-6">
+    <h3 class="font-bold text-sm mb-3">生成建议</h3>
+    <div class="space-y-2 text-xs text-gray-500">
+      <div class="flex gap-2"><span class="text-green-600 font-mono">01</span><span>卖点越具体，脚本越精准。避免"很好""不错"这类模糊词。</span></div>
+      <div class="flex gap-2"><span class="text-green-600 font-mono">02</span><span>同一组输入多次生成，每次结果不同，挑选最佳组合。</span></div>
+      <div class="flex gap-2"><span class="text-green-600 font-mono">03</span><span>生成的脚本建议人工微调20%，加入个人口头禅和真实案例。</span></div>
+    </div>
+  </div>
+
+  <div class="card p-5 mt-6">
+    <div class="flex items-center justify-between mb-3">
+      <h3 class="font-bold text-sm">历史记录</h3>
+      <button onclick="clearHistory()" class="text-xs text-gray-400 hover:text-red-500">清空</button>
+    </div>
+    <div id="historyList" class="text-xs text-gray-400 text-center py-3">暂无记录</div>
+  </div>
 
   <footer class="text-center text-gray-400 text-xs mt-12 pb-8">
     Fox脚本 · 专为抖音运营人打造
@@ -224,6 +241,7 @@ async function generate() {
     updateQuota();
     scripts = parseScripts(data.choices[0].message.content);
     render(scripts);
+    addHistory(industry, sellingPoint, formula);
     toast('生成成功');
   } catch (e) { toast(e.message, false); }
   finally { btn.innerHTML = orig; btn.disabled = false; updateQuota(); }
@@ -317,6 +335,38 @@ document.getElementById('activateModal').addEventListener('click', function(e) {
   if (e.target === this) this.classList.add('hidden');
 });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') document.getElementById('activateModal').classList.add('hidden'); });
+
+// ====== HISTORY ======
+let history = JSON.parse(localStorage.getItem('fh') || '[]');
+renderHistory();
+
+function addHistory(industry, sellingPoint, f) {
+  history.unshift({ id: Date.now(), industry, sellingPoint: sellingPoint.length > 15 ? sellingPoint.slice(0, 15) + '...' : sellingPoint, formula: f || '智能匹配', time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }), scripts });
+  if (history.length > 20) history = history.slice(0, 20);
+  localStorage.setItem('fh', JSON.stringify(history));
+  renderHistory();
+}
+function renderHistory() {
+  const l = document.getElementById('historyList');
+  if (!history.length) { l.innerHTML = '<div class="text-xs text-gray-400 text-center py-3">暂无记录</div>'; return; }
+  l.innerHTML = history.map(h => `
+    <div onclick="restoreHistory(${h.id})" class="flex items-center justify-between py-2 px-2 rounded-lg hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-0">
+      <div>
+        <span class="text-sm font-medium">${h.industry}</span>
+        <span class="text-xs text-gray-400 ml-2">${h.sellingPoint}</span>
+      </div>
+      <div class="flex items-center gap-2">
+        ${h.formula ? '<span class="tag tag-g text-[10px]">' + h.formula + '</span>' : ''}
+        <span class="text-[10px] text-gray-400">${h.time}</span>
+      </div>
+    </div>
+  `).join('');
+}
+function restoreHistory(id) {
+  const h = history.find(x => x.id === id);
+  if (h && h.scripts) { scripts = h.scripts; render(scripts); }
+}
+function clearHistory() { history = []; localStorage.removeItem('fh'); renderHistory(); }
 </script>
 </body>
 </html>
