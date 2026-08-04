@@ -391,7 +391,7 @@
                 }
             }
 
-            if(codeInfo.type !== 'unlimited' && codeInfo.remaining <= 0){
+            if(codeInfo && codeInfo.type !== 'unlimited' && codeInfo.remaining <= 0){
                 document.getElementById('quotaModalTitle').textContent = '次数已用完';
                 document.getElementById('quotaModalDesc').textContent = '当前激活码次数已用完，请获取新码';
                 document.getElementById('activateBtn').textContent = '输入新激活码';
