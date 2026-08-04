@@ -1,4 +1,4 @@
-const CACHE_NAME = 'fox-script-v3';
+const CACHE_NAME = 'fox-script-v4-' + Date.now();
 const urlsToCache = ['/', '/manifest.json'];
 
 self.addEventListener('install', e => {

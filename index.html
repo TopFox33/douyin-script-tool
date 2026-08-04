@@ -577,7 +577,12 @@
         }
 
         // ============ PWA ============
-        if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js').catch(()=>{});}
+        if('serviceWorker' in navigator){
+            // Kill old cache
+            caches.keys().then(names => Promise.all(names.map(n => caches.delete(n))));
+            navigator.serviceWorker.getRegistrations().then(regs => regs.forEach(r => r.unregister()));
+            navigator.serviceWorker.register('/sw.js').catch(()=>{});
+        }
 
         // ============ 激活码相关 ============
         async function activateCode(){
