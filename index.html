@@ -415,7 +415,7 @@
                     scripts = await callBackend(industry,sellingPoint,targetAudience,duration,formula);
                 }
                 currentScripts=scripts;renderScripts(scripts);addToHistory(industry,sellingPoint,formula||'智能匹配');
-                todayStats.count++;todayStats.scripts+=5;localStorage.setItem('todayStats',JSON.stringify(todayStats));if(!authToken){useTrial();}updateStatsDisplay();
+                todayStats.count++;todayStats.scripts+=5;localStorage.setItem('todayStats',JSON.stringify(todayStats));if(!authToken){useTrial();}updateStatsDisplay();updateQuotaDisplay();
                 showToast('生成成功！','success');
             }catch(err){
                 if(err.message === 'NEED_ACTIVATION'){
@@ -468,7 +468,10 @@
         function parseScripts(content){
             // 兼容两种分隔符：---SCRIPT_SPLIT--- 和 --- +
             let raw=content.split('---SCRIPT_SPLIT---').filter(s=>s.trim());
-            if(raw.length<=1) raw=content.split(/\n---\n/).filter(s=>s.trim());
+            if(raw.length<=1) raw=content.split(/
+---
+/).filter(s=>s.trim());
+            if(raw.length<=1) raw=content.split(/---/).filter(s=>s.trim());
             return raw.map((r,idx)=>{
                 const s={};const lines=r.trim().split('\n');
                 let curKey=null,curVal=[];
