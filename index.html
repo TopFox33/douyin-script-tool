@@ -1,612 +1,322 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="theme-color" content="#0a0a0a">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>Fox脚本 · 抖音口播生成</title>
-    <link rel="manifest" href="/manifest.json">
-    <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect fill='%2322c55e' rx='36' width='180' height='180'/%3E%3Ctext x='90' y='125' font-size='90' text-anchor='middle'%3E🎬%3C/text%3E%3C/svg%3E">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: { sans: ['Noto Sans SC','system-ui','sans-serif'] },
-                    colors: {
-                        brand: { 400:'#4ade80', 500:'#22c55e', 600:'#16a34a' },
-                        accent: { 400:'#f472b6', 500:'#ec4899', 600:'#db2777' }
-                    },
-                    animation: {
-                        'fade-in-up': 'fadeInUp 0.5s ease-out forwards',
-                        'pulse-slow': 'pulse 3s cubic-bezier(0.4,0,0.6,1) infinite',
-                        'float': 'float 6s ease-in-out infinite',
-                        'slide-in': 'slideInRight 0.3s ease-out forwards',
-                    },
-                    keyframes: {
-                        fadeInUp: { '0%':{opacity:'0',transform:'translateY(24px)'}, '100%':{opacity:'1',transform:'translateY(0)'} },
-                        float: { '0%,100%':{transform:'translateY(0)'}, '50%':{transform:'translateY(-16px)'} },
-                        slideInRight: { from:{transform:'translateX(100%)',opacity:'0'}, to:{transform:'translateX(0)',opacity:'1'} }
-                    }
-                }
-            }
-        }
-    </script>
-    <style>
-        body{background:linear-gradient(135deg,#f0fdf4 0%,#ecfeff 30%,#faf5ff 60%,#fefce8 100%);min-height:100dvh;font-family:'Noto Sans SC',system-ui,sans-serif;-webkit-tap-highlight-color:transparent;}
-        .gradient-bg{background:linear-gradient(135deg,#f0fdf4 0%,#ecfeff 30%,#faf5ff 60%,#fefce8 100%);}
-        .glass-card{background:rgba(255,255,255,0.85);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,0.06);box-shadow:0 4px 16px rgba(0,0,0,0.04);}
-        .glass-card-hover:hover{border-color:rgba(255,255,255,0.1);box-shadow:0 8px 32px rgba(0,0,0,0.4);transform:translateY(-1px);}
-        .input-glow:focus{box-shadow:0 0 0 2px rgba(34,197,94,0.2),0 0 20px rgba(34,197,94,0.08);}
-        .btn-gradient{background:linear-gradient(135deg,#22c55e 0%,#16a34a 50%,#22c55e 100%);background-size:200% 200%;transition:all 0.3s ease;}
-        .btn-gradient:hover{background-position:100% 0;transform:translateY(-2px);box-shadow:0 10px 40px rgba(34,197,94,0.3);}
-        .btn-gradient:active{transform:translateY(0);}
-        .formula-card{transition:all 0.25s ease;touch-action:manipulation;}
-        .formula-card:active{transform:scale(0.97);}
-        .formula-card.selected{background:rgba(34,197,94,0.1);border-color:rgba(34,197,94,0.5);box-shadow:0 0 20px rgba(34,197,94,0.12);}
-        .script-card{animation:fadeInUp 0.45s ease-out forwards;opacity:0;}
-        .script-card:nth-child(1){animation-delay:0.08s;}
-        .script-card:nth-child(2){animation-delay:0.16s;}
-        .script-card:nth-child(3){animation-delay:0.24s;}
-        .script-card:nth-child(4){animation-delay:0.32s;}
-        .script-card:nth-child(5){animation-delay:0.40s;}
-        .tag{background:#d1fae5;color:#059669;border:1px solid rgba(34,197,94,0.2);}
-        .tag-pink{background:#fce7f3;color:#db2777;border:1px solid rgba(236,72,153,0.2);}
-        .tag-blue{background:#dbeafe;color:#2563eb;border:1px solid rgba(59,130,246,0.2);}
-        .tag-purple{background:#f3e8ff;color:#9333ea;border:1px solid rgba(168,85,247,0.2);}
-        .tag-yellow{background:#fef3c7;color:#d97706;border:1px solid rgba(234,179,8,0.2);}
-        .loading-dots span{animation:loadingDot 1.4s infinite ease-in-out both;}
-        .loading-dots span:nth-child(1){animation-delay:-0.32s;}
-        .loading-dots span:nth-child(2){animation-delay:-0.16s;}
-        @keyframes loadingDot{0%,80%,100%{transform:scale(0);}40%{transform:scale(1);}}
-        .glow-text{text-shadow:0 0 40px rgba(34,197,94,0.25);}
-        .scrollbar-hide::-webkit-scrollbar{display:none;}
-        .scrollbar-hide{-ms-overflow-style:none;scrollbar-width:none;}
-        .api-panel{max-height:0;overflow:hidden;transition:max-height 0.35s ease-out;}
-        .api-panel.open{max-height:220px;}
-        .history-item{transition:all 0.2s ease;}
-        .history-item:hover{background:rgba(255,255,255,0.05);}
-        .bg-orb{position:fixed;border-radius:50%;filter:blur(100px);opacity:0.12;pointer-events:none;z-index:0;}
-        .orb-1{width:500px;height:500px;background:radial-gradient(circle,#bbf7d0,transparent);top:-180px;right:-180px;}
-        .orb-2{width:400px;height:400px;background:radial-gradient(circle,#fce7f3,transparent);bottom:-120px;left:-120px;}
-        @media (max-width:640px){.orb-1{width:300px;height:300px;top:-100px;right:-100px;}.orb-2{width:250px;height:250px;bottom:-80px;left:-80px;}}
-        .ios-safe-bottom{padding-bottom:max(1.5rem,env(safe-area-inset-bottom));}
-        /* 模态遮罩 */
-        .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(6px);z-index:100;display:flex;align-items:center;justify-content:center;padding:20px;animation:fadeIn 0.25s ease-out;}
-        .modal-overlay.hidden{display:none;}
-        @keyframes fadeIn{from{opacity:0}to{opacity:1}}
-        .modal-card{animation:modalUp 0.3s ease-out;}
-        @keyframes modalUp{from{transform:translateY(30px);opacity:0}to{transform:translateY(0);opacity:1}}
-        .quota-bar{height:6px;border-radius:3px;background:rgba(255,255,255,0.08);overflow:hidden;}
-        .quota-fill{height:100%;border-radius:3px;transition:width 0.4s ease;}
-        .btn-disabled{background:#e5e7eb!important;color:#9ca3af!important;cursor:not-allowed!important;box-shadow:none!important;transform:none!important;}
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#f0fdf4">
+<title>Fox脚本 · 抖音口播生成</title>
+<link rel="manifest" href="/manifest.json">
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+body{background:linear-gradient(135deg,#f0fdf4 0%,#ecfeff 30%,#faf5ff 60%,#fefce8 100%);min-height:100dvh;font-family:'Noto Sans SC',sans-serif;}
+.card{background:rgba(255,255,255,.85);backdrop-filter:blur(20px);border:1px solid rgba(0,0,0,.06);border-radius:16px;box-shadow:0 4px 16px rgba(0,0,0,.04);}
+.btn{background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff;border:none;border-radius:12px;font-weight:600;cursor:pointer;transition:all .2s;}
+.btn:hover{transform:translateY(-1px);box-shadow:0 8px 24px rgba(34,197,94,.3);}
+.btn:disabled{background:#e5e7eb;color:#9ca3af;cursor:not-allowed;transform:none;box-shadow:none;}
+input,textarea{background:rgba(255,255,255,.6);border:1px solid rgba(0,0,0,.1);border-radius:10px;padding:10px 14px;font-size:14px;outline:none;width:100%;box-sizing:border-box;}
+input:focus,textarea:focus{border-color:#22c55e;box-shadow:0 0 0 2px rgba(34,197,94,.1);}
+.formula-btn{border:1px solid rgba(0,0,0,.08);border-radius:10px;padding:10px;text-align:left;cursor:pointer;transition:all .2s;background:rgba(255,255,255,.5);}
+.formula-btn:hover{border-color:#22c55e;}
+.formula-btn.active{background:rgba(34,197,94,.08);border-color:#22c55e;}
+.tag{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;}
+.tag-g{background:#d1fae5;color:#059669;}
+.tag-p{background:#fce7f3;color:#db2777;}
+.tag-b{background:#dbeafe;color:#2563eb;}
+.tag-v{background:#f3e8ff;color:#9333ea;}
+.tag-y{background:#fef3c7;color:#d97706;}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);z-index:100;display:flex;align-items:center;justify-content:center;padding:20px;}
+.modal.hidden{display:none;}
+.loading span{display:inline-block;width:6px;height:6px;background:#fff;border-radius:50%;animation:dot 1.4s infinite;}
+.loading span:nth-child(2){animation-delay:.16s;}
+.loading span:nth-child(3){animation-delay:.32s;}
+@keyframes dot{0%,80%,100%{transform:scale(0)}40%{transform:scale(1)}}
+</style>
 </head>
-<body class="gradient-bg text-gray-800 relative overflow-x-hidden">
-    <div class="bg-orb orb-1"></div>
-    <div class="bg-orb orb-2"></div>
-    <div id="toastContainer" class="fixed top-4 right-4 z-50 space-y-2 pointer-events-none"></div>
+<body>
+<div class="max-w-3xl mx-auto px-4 py-8">
+  <header class="text-center mb-8">
+    <h1 class="text-3xl font-bold" style="color:#059669">Fox脚本</h1>
+    <p class="text-gray-500 mt-2">输入行业和卖点，AI 自动生成口播脚本</p>
+  </header>
 
-    <div class="relative z-10 max-w-6xl mx-auto px-4 py-6 md:py-10">
-        <!-- Header -->
-        <header class="text-center mb-8 md:mb-12 animate-fade-in-up">
-            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full glass-card mb-5 text-xs md:text-sm text-gray-400">
-                <span class="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span>
-                <span id="backendStatus" style="color:#6b7280">检测服务中...</span>
-            </div>
-            <h1 class="text-3xl md:text-5xl font-black mb-3 tracking-tight glow-text leading-tight">
-                <span style="color:#059669">Fox脚本</span>
-            </h1>
-            <p class="text-gray-400 text-base md:text-lg max-w-xl mx-auto leading-relaxed px-2">
-                输入行业和产品卖点，AI 自动生成 <span class="text-green-400 font-semibold">5 条带钩子的结构化口播脚本</span>
-            </p>
-        </header>
-
-        <!-- API 设置（折叠，默认隐藏） -->
-        <div class="max-w-3xl mx-auto mb-6">
-            <button onclick="toggleApiPanel()" class="w-full flex items-center justify-between px-4 py-2.5 glass-card rounded-xl text-xs md:text-sm text-gray-500 hover:text-gray-600 transition-colors">
-                <span class="flex items-center gap-2"><i class="fas fa-key"></i><span id="apiToggleText">高级设置</span></span>
-                <i id="apiArrow" class="fas fa-chevron-down transition-transform text-xs"></i>
-            </button>
-            <div id="apiPanel" class="api-panel">
-                <div class="glass-card rounded-xl p-4 mt-2 space-y-3">
-                    <div>
-                        <label class="block text-xs text-gray-500 mb-1.5">自定义 DeepSeek API Key（可选）</label>
-                        <input type="password" id="apiKey" placeholder="留空则使用系统默认" class="w-full bg-white/60 border border-white/10 rounded-lg px-3 py-2 text-sm text-gray-800 placeholder-gray-400 focus:outline-none input-glow transition-all">
-                        <p class="text-[11px] text-gray-600 mt-1.5 leading-relaxed">部署后已由服务端配置，无需填写。如需使用自己的 Key，可在此覆盖。</p>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <input type="checkbox" id="saveApiKey" class="w-4 h-4 rounded border-white/20 bg-white/60 text-green-500 focus:ring-green-500/20">
-                        <label for="saveApiKey" class="text-xs text-gray-500">保存到本设备</label>
-                    </div>
-                </div>
-            </div>
+  <div class="card p-6 mb-6">
+    <div class="space-y-4">
+      <div>
+        <label class="text-sm font-medium text-gray-700 mb-1 block">行业 <span class="text-red-400">*</span></label>
+        <input id="industry" placeholder="如：美妆、餐饮、知识付费">
+      </div>
+      <div>
+        <label class="text-sm font-medium text-gray-700 mb-1 block">产品卖点 <span class="text-red-400">*</span></label>
+        <textarea id="sellingPoint" rows="2" placeholder="如：不脱妆粉底液，持妆12小时"></textarea>
+      </div>
+      <div>
+        <label class="text-sm font-medium text-gray-700 mb-1 block">目标人群</label>
+        <input id="audience" placeholder="如：25-35岁职场女性">
+      </div>
+      <div>
+        <label class="text-sm font-medium text-gray-700 mb-2 block">视频时长</label>
+        <div class="flex gap-2">
+          <button onclick="setDuration(this,'15秒')" class="formula-btn flex-1 text-center text-sm dur-btn">15秒</button>
+          <button onclick="setDuration(this,'30秒')" class="formula-btn flex-1 text-center text-sm dur-btn active">30秒</button>
+          <button onclick="setDuration(this,'60秒')" class="formula-btn flex-1 text-center text-sm dur-btn">60秒</button>
         </div>
-
-        <div class="grid lg:grid-cols-3 gap-5 md:gap-6 max-w-6xl mx-auto">
-            <!-- 左侧：输入区 -->
-            <div class="lg:col-span-2 space-y-5">
-                <div class="glass-card rounded-2xl p-5 md:p-7">
-                    <h2 class="text-lg font-bold mb-5 flex items-center gap-2"><i class="fas fa-sliders-h text-green-400"></i>脚本配置</h2>
-                    <div class="space-y-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-600 mb-1.5">行业 / 赛道 <span class="text-red-400">*</span></label>
-                            <div class="relative">
-                                <i class="fas fa-industry absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-600 text-sm"></i>
-                                <input type="text" id="industry" placeholder="例如：美妆护肤、本地餐饮、知识付费..." class="w-full bg-white/60 border border-white/10 rounded-xl pl-10 pr-4 py-3 text-sm text-gray-800 placeholder-gray-400 focus:outline-none input-glow transition-all">
-                            </div>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-600 mb-1.5">产品卖点 / 核心信息 <span class="text-red-400">*</span></label>
-                            <div class="relative">
-                                <i class="fas fa-bullseye absolute left-3.5 top-3.5 text-gray-600 text-sm"></i>
-                                <textarea id="sellingPoint" rows="3" placeholder="例如：不脱妆粉底液，持妆12小时，油皮亲妈..." class="w-full bg-white/60 border border-white/10 rounded-xl pl-10 pr-4 py-3 text-sm text-gray-800 placeholder-gray-400 focus:outline-none input-glow transition-all resize-none"></textarea>
-                            </div>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-600 mb-1.5">目标人群</label>
-                            <div class="relative">
-                                <i class="fas fa-users absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-600 text-sm"></i>
-                                <input type="text" id="targetAudience" placeholder="例如：25-35岁混油皮职场女性" class="w-full bg-white/60 border border-white/10 rounded-xl pl-10 pr-4 py-3 text-sm text-gray-800 placeholder-gray-400 focus:outline-none input-glow transition-all">
-                            </div>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-600 mb-2">视频时长</label>
-                            <div class="grid grid-cols-4 gap-2.5">
-                                <button onclick="selectDuration(this,'15秒')" class="duration-btn py-2.5 rounded-lg border border-white/10 bg-white/60 text-xs md:text-sm text-gray-400 hover:border-green-500/50 hover:text-green-400 transition-all">15秒</button>
-                                <button onclick="selectDuration(this,'30秒')" class="duration-btn py-2.5 rounded-lg border border-green-500 text-green-400 bg-green-500/10 text-xs md:text-sm transition-all selected-duration">30秒</button>
-                                <button onclick="selectDuration(this,'60秒')" class="duration-btn py-2.5 rounded-lg border border-white/10 bg-white/60 text-xs md:text-sm text-gray-400 hover:border-green-500/50 hover:text-green-400 transition-all">60秒</button>
-                                <button onclick="selectDuration(this,'3分钟')" class="duration-btn py-2.5 rounded-lg border border-white/10 bg-white/60 text-xs md:text-sm text-gray-400 hover:border-green-500/50 hover:text-green-400 transition-all">3分钟</button>
-                            </div>
-                            <input type="hidden" id="duration" value="30秒">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-600 mb-2.5">爆款公式 <span class="text-xs text-gray-500 font-normal">（点击选择，不选则智能匹配）</span></label>
-                            <div class="grid grid-cols-2 md:grid-cols-3 gap-2.5">
-                                <div onclick="selectFormula(this,'揭秘型')" class="formula-card glass-card rounded-xl p-3.5 border border-white/10">
-                                    <div class="flex items-center gap-2.5 mb-1"><span class="text-xl">🔥</span><span class="font-semibold text-gray-800 text-sm">揭秘型</span></div>
-                                    <p class="text-[11px] text-gray-500 leading-snug">"行业内幕/员工不敢说的秘密"</p>
-                                </div>
-                                <div onclick="selectFormula(this,'反转型')" class="formula-card glass-card rounded-xl p-3.5 border border-white/10">
-                                    <div class="flex items-center gap-2.5 mb-1"><span class="text-xl">😱</span><span class="font-semibold text-gray-800 text-sm">反转型</span></div>
-                                    <p class="text-[11px] text-gray-500 leading-snug">"你以为…其实…"</p>
-                                </div>
-                                <div onclick="selectFormula(this,'省钱型')" class="formula-card glass-card rounded-xl p-3.5 border border-white/10">
-                                    <div class="flex items-center gap-2.5 mb-1"><span class="text-xl">💰</span><span class="font-semibold text-gray-800 text-sm">省钱型</span></div>
-                                    <p class="text-[11px] text-gray-500 leading-snug">"月薪3000 vs 3万的区别"</p>
-                                </div>
-                                <div onclick="selectFormula(this,'痛点型')" class="formula-card glass-card rounded-xl p-3.5 border border-white/10">
-                                    <div class="flex items-center gap-2.5 mb-1"><span class="text-xl">🎯</span><span class="font-semibold text-gray-800 text-sm">痛点型</span></div>
-                                    <p class="text-[11px] text-gray-500 leading-snug">"如果你也有XX困扰…"</p>
-                                </div>
-                                <div onclick="selectFormula(this,'对比型')" class="formula-card glass-card rounded-xl p-3.5 border border-white/10">
-                                    <div class="flex items-center gap-2.5 mb-1"><span class="text-xl">📊</span><span class="font-semibold text-gray-800 text-sm">对比型</span></div>
-                                    <p class="text-[11px] text-gray-500 leading-snug">"A和B到底有什么区别"</p>
-                                </div>
-                                <div onclick="selectFormula(this,'故事型')" class="formula-card glass-card rounded-xl p-3.5 border border-white/10">
-                                    <div class="flex items-center gap-2.5 mb-1"><span class="text-xl">📖</span><span class="font-semibold text-gray-800 text-sm">故事型</span></div>
-                                    <p class="text-[11px] text-gray-500 leading-snug">"昨天发生了一件事…"</p>
-                                </div>
-                            </div>
-                            <input type="hidden" id="formula" value="">
-                        </div>
-                        <button onclick="generateScripts()" id="generateBtn" class="w-full btn-gradient text-gray-800 font-bold text-base md:text-lg py-3.5 md:py-4 rounded-xl flex items-center justify-center gap-2.5 mt-1">
-                            <i class="fas fa-wand-magic-sparkles"></i><span>生成 5 条爆款脚本</span>
-                        </button>
-                    </div>
-                </div>
-
-                <!-- 结果区 -->
-                <div id="resultArea" class="hidden space-y-4">
-                    <div class="flex items-center justify-between">
-                        <h2 class="text-lg font-bold flex items-center gap-2"><i class="fas fa-scroll text-pink-400"></i>生成结果</h2>
-                        <button onclick="copyAllScripts()" class="px-3 py-2 glass-card rounded-lg text-xs md:text-sm text-gray-600 hover:text-gray-800 hover:border-green-500/30 transition-all flex items-center gap-2">
-                            <i class="fas fa-copy"></i>复制全部
-                        </button>
-                    </div>
-                    <div id="scriptsContainer" class="space-y-4"></div>
-                </div>
-            </div>
-
-            <!-- 右侧：历史 + 技巧 + 统计 -->
-            <div class="space-y-5">
-                <div class="glass-card rounded-2xl p-5">
-                    <div class="flex items-center justify-between mb-3">
-                        <h3 class="font-bold flex items-center gap-2 text-sm"><i class="fas fa-history text-blue-400"></i>历史记录</h3>
-                        <button onclick="clearHistory()" class="text-[11px] text-gray-500 hover:text-red-400 transition-colors">清空</button>
-                    </div>
-                    <div id="historyList" class="space-y-2 max-h-72 overflow-y-auto scrollbar-hide">
-                        <p class="text-xs text-gray-500 text-center py-6">暂无历史记录</p>
-                    </div>
-                </div>
-                <div class="glass-card rounded-2xl p-5">
-                    <h3 class="font-bold mb-3 flex items-center gap-2 text-sm"><i class="fas fa-lightbulb text-yellow-400"></i>提效技巧</h3>
-                    <div class="space-y-2.5 text-xs text-gray-400 leading-relaxed">
-                        <div class="flex gap-2.5"><span class="text-green-400 font-mono shrink-0">01</span><p>卖点越具体，脚本越精准。避免"很好""不错"这类模糊词。</p></div>
-                        <div class="flex gap-2.5"><span class="text-green-400 font-mono shrink-0">02</span><p>同一组输入多次生成，每次结果不同，挑选最佳组合。</p></div>
-                        <div class="flex gap-2.5"><span class="text-green-400 font-mono shrink-0">03</span><p>生成的脚本建议人工微调 20%，加入个人口头禅和真实案例。</p></div>
-                        <div class="flex gap-2.5"><span class="text-green-400 font-mono shrink-0">04</span><p>3秒钩子决定完播率，拍摄时加重语气、配合表情。</p></div>
-                    </div>
-                </div>
-                <div class="glass-card rounded-2xl p-5">
-                    <h3 class="font-bold mb-3 flex items-center gap-2 text-sm"><i class="fas fa-chart-line text-green-400"></i>今日数据</h3>
-                    <div class="grid grid-cols-2 gap-3">
-                        <div class="text-center p-2.5 bg-white/60 rounded-xl">
-                            <div id="todayCount" class="text-xl md:text-2xl font-bold text-green-400">0</div>
-                            <div class="text-[11px] text-gray-500 mt-0.5">生成次数</div>
-                        </div>
-                        <div class="text-center p-2.5 bg-white/60 rounded-xl">
-                            <div id="totalScripts" class="text-xl md:text-2xl font-bold text-pink-400">0</div>
-                            <div class="text-[11px] text-gray-500 mt-0.5">脚本总数</div>
-                        </div>
-                    </div>
-                    <div class="mt-3" id="quotaSection">
-                        <div class="flex items-center justify-between mb-1.5">
-                            <span class="text-[11px] text-gray-500">每日免费额度</span>
-                            <span id="quotaLabel" class="text-[11px] text-green-400 font-medium">剩余 3/3 次</span>
-                        </div>
-                        <div class="quota-bar"><div id="quotaFill" class="quota-fill" style="width:100%;background:linear-gradient(90deg,#22c55e,#4ade80)"></div></div>
-                    </div>
-                </div>
-            </div>
+        <input type="hidden" id="duration" value="30秒">
+      </div>
+      <div>
+        <label class="text-sm font-medium text-gray-700 mb-2 block">爆款公式 <span class="text-xs text-gray-400 font-normal">（可选）</span></label>
+        <div class="grid grid-cols-3 gap-2">
+          <button onclick="setFormula(this,'揭秘型')" class="formula-btn"><div class="font-medium text-sm">🔥 揭秘型</div><div class="text-[11px] text-gray-400">行业内幕</div></button>
+          <button onclick="setFormula(this,'反转型')" class="formula-btn"><div class="font-medium text-sm">😱 反转型</div><div class="text-[11px] text-gray-400">你以为是…</div></button>
+          <button onclick="setFormula(this,'省钱型')" class="formula-btn"><div class="font-medium text-sm">💰 省钱型</div><div class="text-[11px] text-gray-400">花小钱</div></button>
+          <button onclick="setFormula(this,'痛点型')" class="formula-btn"><div class="font-medium text-sm">🎯 痛点型</div><div class="text-[11px] text-gray-400">你是不是…</div></button>
+          <button onclick="setFormula(this,'对比型')" class="formula-btn"><div class="font-medium text-sm">📊 对比型</div><div class="text-[11px] text-gray-400">A vs B</div></button>
+          <button onclick="setFormula(this,'故事型')" class="formula-btn"><div class="font-medium text-sm">📖 故事型</div><div class="text-[11px] text-gray-400">真实经历</div></button>
         </div>
-
-        <footer class="mt-12 md:mt-16 text-center text-gray-600 text-xs md:text-sm pb-8 ios-safe-bottom">
-            <p>Fox脚本 · 专为抖音运营人打造</p><p class="mt-2">获取激活码/合作 微信：<span class="text-green-600 font-medium">iiixh_</span></p>
-            
-        </footer>
+        <input type="hidden" id="formula" value="">
+      </div>
+      <button onclick="generate()" id="genBtn" class="btn w-full py-3.5 text-base flex items-center justify-center gap-2">
+        <span id="genText">生成 5 条脚本</span>
+      </button>
+      <div class="flex items-center justify-between text-xs">
+        <span id="quotaLabel" class="text-blue-600">免费试用剩余 3/3 次</span>
+        <span id="backendDot" class="w-2 h-2 rounded-full bg-gray-300 inline-block"></span>
+      </div>
     </div>
+  </div>
 
-    <!-- 次数用完/未激活遮罩 -->
-    <div id="quotaModal" class="modal-overlay hidden" onclick="if(event.target===this)closeQuotaModal()">
-        <div class="modal-card glass-card rounded-2xl p-6 md:p-8 max-w-sm w-full text-center">
-            <div class="text-5xl mb-4">🔑</div>
-            <h2 class="text-xl font-bold text-gray-800 mb-2" id="quotaModalTitle">请输入激活码</h2>
-            <p class="text-sm text-gray-400 mb-4" id="quotaModalDesc">获取激活码后即可无限使用</p>
-            <input type="text" id="activationInput" placeholder="FOX-XXXX-XXXX-XXXX" class="w-full bg-white/60 border border-white/10 rounded-xl px-4 py-3 text-sm text-gray-800 placeholder-gray-400 text-center tracking-widest mb-3 focus:outline-none input-glow" autocomplete="off">
-            <p id="activationError" class="text-xs text-red-400 mb-3 hidden"></p>
-            <button onclick="activateCode()" class="w-full btn-gradient text-gray-800 font-bold py-3 rounded-xl mb-3 text-sm" id="activateBtn">验证激活码</button>
-            <p id="activateStatus" class="text-[11px] text-gray-600 mt-2"></p>
+  <div id="results" class="hidden space-y-4"></div>
+
+  <footer class="text-center text-gray-400 text-xs mt-12 pb-8">
+    Fox脚本 · 专为抖音运营人打造
+  </footer>
+</div>
+
+<!-- Activation Modal -->
+<div id="activateModal" class="modal hidden">
+  <div class="card p-8 max-w-sm w-full text-center">
+    <div class="text-4xl mb-3">🔑</div>
+    <h2 class="text-xl font-bold mb-2" id="modalTitle">请输入激活码</h2>
+    <p class="text-sm text-gray-500 mb-4" id="modalDesc">获取激活码后即可继续使用</p>
+    <input id="codeInput" placeholder="FOX-XXXX-XXXX-XXXX" class="text-center tracking-wider mb-3" autocomplete="off">
+    <p id="codeError" class="text-xs text-red-500 mb-3 hidden"></p>
+    <button onclick="activate()" class="btn w-full py-3 text-sm" id="activateBtn">验证激活码</button>
+    <p id="codeSuccess" class="text-xs text-green-600 mt-3 hidden"></p>
+    <p class="text-xs text-gray-400 mt-4">获取激活码 微信：<span class="text-green-600 font-medium">iiixh_</span></p>
+  </div>
+</div>
+
+<script>
+// ====== STATE ======
+let token = localStorage.getItem('ft') || '';
+let codeInfo = JSON.parse(localStorage.getItem('fci') || 'null');
+let duration = '30秒', formula = '', scripts = [];
+
+const TRIAL = 3;
+function trialUsed() { return parseInt(localStorage.getItem('ftu') || '0'); }
+function trialLeft() { return TRIAL - trialUsed(); }
+
+function fp() {
+  const s = [navigator.userAgent, screen.width + 'x' + screen.height, Intl.DateTimeFormat().resolvedOptions().timeZone].join('|');
+  return btoa(s).replace(/[^a-zA-Z0-9]/g, '').substring(0, 32);
+}
+
+// ====== UI ======
+function setDuration(el, val) {
+  document.querySelectorAll('.dur-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('duration').value = duration = val;
+}
+function setFormula(el, val) {
+  const isActive = el.classList.contains('active');
+  document.querySelectorAll('.formula-btn').forEach(b => b.classList.remove('active'));
+  if (!isActive) { el.classList.add('active'); formula = val; }
+  else { formula = ''; }
+  document.getElementById('formula').value = formula;
+}
+
+function toast(msg, ok = true) {
+  const d = document.createElement('div');
+  d.className = 'fixed top-4 right-4 card px-4 py-2.5 text-sm z-50';
+  d.style.color = ok ? '#059669' : '#dc2626';
+  d.textContent = msg;
+  document.body.appendChild(d);
+  setTimeout(() => { d.style.opacity = '0'; d.style.transition = 'opacity .25s'; setTimeout(() => d.remove(), 250); }, 2500);
+}
+
+function showActivateModal(title, desc) {
+  document.getElementById('modalTitle').textContent = title;
+  document.getElementById('modalDesc').textContent = desc;
+  document.getElementById('codeInput').value = '';
+  document.getElementById('codeError').classList.add('hidden');
+  document.getElementById('codeSuccess').classList.add('hidden');
+  document.getElementById('activateBtn').textContent = '验证激活码';
+  document.getElementById('activateBtn').disabled = false;
+  document.getElementById('activateModal').classList.remove('hidden');
+}
+
+// ====== QUOTA ======
+function updateQuota() {
+  const lbl = document.getElementById('quotaLabel');
+  const btn = document.getElementById('genBtn');
+  const txt = document.getElementById('genText');
+  if (token && codeInfo) {
+    const r = codeInfo.type === 'unlimited' ? '∞' : codeInfo.remaining;
+    lbl.textContent = '剩余 ' + r + ' 次';
+    lbl.className = 'text-green-600 text-xs';
+    btn.disabled = false; txt.textContent = '生成 5 条脚本';
+  } else if (trialLeft() > 0) {
+    lbl.textContent = '免费试用剩余 ' + trialLeft() + '/' + TRIAL + ' 次';
+    lbl.className = 'text-blue-600 text-xs';
+    btn.disabled = false; txt.textContent = '生成 5 条脚本（免费）';
+  } else {
+    lbl.textContent = '试用已用完';
+    lbl.className = 'text-red-500 text-xs';
+    btn.disabled = true; txt.textContent = '请激活后使用';
+  }
+}
+updateQuota();
+
+// ====== BACKEND CHECK ======
+fetch('/api/generate', { method: 'OPTIONS' }).then(r => {
+  if (r.ok || r.status === 405) {
+    document.getElementById('backendDot').className = 'w-2 h-2 rounded-full bg-green-500 inline-block';
+  }
+}).catch(() => {});
+
+// ====== GENERATE ======
+async function generate() {
+  const industry = document.getElementById('industry').value.trim();
+  const sellingPoint = document.getElementById('sellingPoint').value.trim();
+  const audience = document.getElementById('audience').value.trim();
+  if (!industry || !sellingPoint) { toast('请填写行业和产品卖点', false); return; }
+
+  if (!token && trialLeft() <= 0) {
+    showActivateModal('请输入激活码', '试用次数已用完，获取激活码继续使用');
+    return;
+  }
+
+  const btn = document.getElementById('genBtn');
+  const orig = btn.innerHTML;
+  btn.innerHTML = '<div class="loading"><span></span><span></span><span></span></div>';
+  btn.disabled = true;
+
+  try {
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = 'Bearer ' + token;
+    const res = await fetch('/api/generate', { method: 'POST', headers, body: JSON.stringify({ industry, sellingPoint, targetAudience: audience, duration, formula }) });
+    const data = await res.json();
+    if (!res.ok) {
+      if (data.needActivation) {
+        localStorage.removeItem('ft'); localStorage.removeItem('fci'); token = ''; codeInfo = null;
+        updateQuota();
+        showActivateModal('请重新激活', '激活码已失效');
+        return;
+      }
+      throw new Error(data.error || '服务繁忙');
+    }
+    if (!token) { localStorage.setItem('ftu', (trialUsed() + 1) + ''); }
+    if (data.remaining !== undefined && codeInfo) {
+      codeInfo.remaining = data.remaining;
+      codeInfo.type = data.codeType || codeInfo.type;
+      localStorage.setItem('fci', JSON.stringify(codeInfo));
+    }
+    updateQuota();
+    scripts = parseScripts(data.choices[0].message.content);
+    render(scripts);
+    toast('生成成功');
+  } catch (e) { toast(e.message, false); }
+  finally { btn.innerHTML = orig; btn.disabled = false; updateQuota(); }
+}
+
+function parseScripts(content) {
+  let raw = content.split('---SCRIPT_SPLIT---').filter(s => s.trim());
+  if (raw.length <= 1) raw = content.split(/\n---\n/).filter(s => s.trim());
+  return raw.map((r, idx) => {
+    const s = {}; const lines = r.trim().split('\n');
+    let key = null, val = [];
+    const fields = { hook: '【3秒钩子】', pain: '【痛点共鸣】', solution: '【解决方案】', trust: '【信任背书】', action: '【行动指令】', tip: '【拍摄建议】' };
+    for (const line of lines) {
+      let matched = null;
+      for (const [k, v] of Object.entries(fields)) { if (line.includes(v)) { matched = k; break; } }
+      if (matched) {
+        if (key && val.length) s[key] = val.join('\n').trim();
+        key = matched; val = [];
+        const after = line.substring(line.indexOf(fields[matched]) + fields[matched].length).replace(/^[：:]\s*/, '').trim();
+        if (after) val.push(after);
+      } else if (key) { val.push(line); }
+    }
+    if (key && val.length) s[key] = val.join('\n').trim();
+    if (!s.hook) s.content = r.trim();
+    return { id: idx + 1, ...s };
+  });
+}
+
+function render(scripts) {
+  const c = document.getElementById('results');
+  c.innerHTML = scripts.map(s => `
+    <div class="card p-5">
+      <div class="flex items-center gap-2 mb-3">
+        <span class="w-6 h-6 rounded bg-green-100 text-green-700 flex items-center justify-center text-xs font-bold">${s.id}</span>
+        <span class="tag tag-g">脚本 ${s.id}</span>
+        <button onclick="copyOne(${s.id - 1})" class="ml-auto text-xs text-gray-400 hover:text-green-600">复制</button>
+      </div>
+      ${s.hook ? `
+        <div class="space-y-2.5">
+          <div class="bg-pink-50 rounded-lg p-3 border-l-[3px] border-pink-400"><div class="tag tag-p mb-1">3秒钩子</div><p class="text-sm text-gray-700">${s.hook}</p></div>
+          <div class="bg-yellow-50 rounded-lg p-3 border-l-[3px] border-yellow-400"><div class="tag tag-y mb-1">痛点共鸣</div><p class="text-sm text-gray-700">${s.pain || ''}</p></div>
+          <div class="bg-green-50 rounded-lg p-3 border-l-[3px] border-green-400"><div class="tag tag-g mb-1">解决方案</div><p class="text-sm text-gray-700">${s.solution || ''}</p></div>
+          <div class="bg-blue-50 rounded-lg p-3 border-l-[3px] border-blue-400"><div class="tag tag-b mb-1">信任背书</div><p class="text-sm text-gray-700">${s.trust || ''}</p></div>
+          <div class="bg-purple-50 rounded-lg p-3 border-l-[3px] border-purple-400"><div class="tag tag-v mb-1">行动指令</div><p class="text-sm text-gray-700">${s.action || ''}</p></div>
+          ${s.tip ? `<div class="text-xs text-gray-400 flex items-start gap-1 pt-2 border-t border-gray-100"><span>🎬</span><span>${s.tip}</span></div>` : ''}
+          <div class="text-right pt-2 border-t border-gray-100"><span class="text-[10px] text-gray-400">— Fox脚本 AI生成</span></div>
         </div>
+      ` : `<p class="text-sm text-gray-700">${s.content || ''}</p><div class="text-right pt-2 border-t border-gray-100"><span class="text-[10px] text-gray-400">— Fox脚本 AI生成</span></div>`}
     </div>
+  `).join('');
+  c.classList.remove('hidden');
+  c.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
 
-    <script>
-        // ============ 状态 ============
-        let currentScripts=[], history=JSON.parse(localStorage.getItem('scriptHistory')||'[]');
-        let todayStats=JSON.parse(localStorage.getItem('todayStats')||'{"date":"","count":0,"scripts":0}');
-        let hasBackend=false;
-        const today=new Date().toDateString();
-        if(todayStats.date!==today){todayStats={date:today,count:0,scripts:0};localStorage.setItem('todayStats',JSON.stringify(todayStats));}
-        updateStatsDisplay(); renderHistory();
+function copyOne(i) {
+  const s = scripts[i]; if (!s) return;
+  const t = s.hook ? `【3秒钩子】${s.hook}\n\n【痛点共鸣】${s.pain}\n\n【解决方案】${s.solution}\n\n【信任背书】${s.trust}\n\n【行动指令】${s.action}${s.tip ? '\n\n【拍摄建议】' + s.tip : ''}` : s.content || '';
+  navigator.clipboard.writeText(t).then(() => toast('已复制'));
+}
 
-        // 激活码 / Token 管理
-        let authToken = localStorage.getItem('foxToken') || '';
-        let codeInfo = JSON.parse(localStorage.getItem('foxCodeInfo')||'null');
-        function getFingerprint() {
-          const fp = [navigator.userAgent, screen.width+'x'+screen.height, Intl.DateTimeFormat().resolvedOptions().timeZone].join('|');
-          return btoa(fp).replace(/[^a-zA-Z0-9]/g,'').substring(0,32);
-        }
-        function saveAuth(token, info) {
-          authToken = token;
-          codeInfo = info;
-          localStorage.setItem('foxToken', token);
-          localStorage.setItem('foxCodeInfo', JSON.stringify(info));
-          updateQuotaDisplay();
-          document.getElementById('quotaModal').classList.add('hidden');
-        }
-        function clearAuth() {
-          authToken = '';
-          codeInfo = null;
-          localStorage.removeItem('foxToken');
-          localStorage.removeItem('foxCodeInfo');
-          updateQuotaDisplay();
-        }
+// ====== ACTIVATION ======
+async function activate() {
+  const code = document.getElementById('codeInput').value.trim();
+  if (!code) { document.getElementById('codeError').textContent = '请输入激活码'; document.getElementById('codeError').classList.remove('hidden'); return; }
+  const btn = document.getElementById('activateBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="loading"><span></span><span></span><span></span></div>';
+  document.getElementById('codeError').classList.add('hidden');
+  try {
+    const res = await fetch('/api/activate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code, fingerprint: fp() }) });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || '验证失败');
+    token = data.token;
+    codeInfo = { type: data.type, remaining: data.remaining, maxUses: data.maxUses, expiresAt: data.expiresAt };
+    localStorage.setItem('ft', token);
+    localStorage.setItem('fci', JSON.stringify(codeInfo));
+    document.getElementById('codeSuccess').textContent = data.type === 'unlimited' ? '无限次已激活' : '激活成功，剩余 ' + data.remaining + ' 次';
+    document.getElementById('codeSuccess').classList.remove('hidden');
+    updateQuota();
+    setTimeout(() => document.getElementById('activateModal').classList.add('hidden'), 1500);
+  } catch (e) {
+    document.getElementById('codeError').textContent = e.message;
+    document.getElementById('codeError').classList.remove('hidden');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '验证激活码';
+  }
+}
 
-        
-
-        // 免费试用3次（仅首次）
-        const TRIAL_LIMIT = 3;
-        function getTrialKey() { return 'fox_trial_used'; }
-        function getTrialUsed() { return parseInt(localStorage.getItem(getTrialKey()) || '0'); }
-        function hasTrialRemaining() { return getTrialUsed() < TRIAL_LIMIT; }
-        function useTrial() { localStorage.setItem(getTrialKey(), (getTrialUsed() + 1) + ''); }
-
-        // ============ 激活码配额 ============
-        function checkQuota(){
-            if(authToken && codeInfo) {
-                if(codeInfo.type === 'unlimited') return true;
-                return codeInfo.remaining > 0 || codeInfo.remaining === '无限次';
-            }
-            if(hasTrialRemaining()) return true;
-            return false;
-        }
-        function updateQuotaDisplay(){
-            const remainEl = document.getElementById('quotaLabel');
-            const fill = document.getElementById('quotaFill');
-            const btn = document.getElementById('generateBtn');
-            if(authToken && codeInfo) {
-                const remain = codeInfo.type === 'unlimited' ? '∞' : codeInfo.remaining;
-                remainEl.textContent = '剩余 ' + remain + ' 次';
-                remainEl.className = 'text-[11px] text-green-600 font-medium';
-                fill.style.width = '100%';
-                fill.style.background = 'linear-gradient(90deg,#22c55e,#4ade80)';
-                btn.classList.remove('btn-disabled');
-                btn.querySelector('span').textContent = '生成 5 条爆款脚本';
-            } else if(hasTrialRemaining()) {
-                const remain = TRIAL_LIMIT - getTrialUsed();
-                remainEl.textContent = '免费试用剩余 ' + remain + '/' + TRIAL_LIMIT + ' 次';
-                remainEl.className = 'text-[11px] text-blue-600 font-medium';
-                fill.style.width = (remain/TRIAL_LIMIT*100) + '%';
-                fill.style.background = 'linear-gradient(90deg,#60a5fa,#3b82f6)';
-                btn.classList.remove('btn-disabled');
-                btn.querySelector('span').textContent = '生成 5 条爆款脚本（免费）';
-            } else {
-                remainEl.textContent = '试用已用完';
-                remainEl.className = 'text-[11px] text-red-500 font-medium';
-                fill.style.width = '5%';
-                fill.style.background = '#ef4444';
-                btn.classList.add('btn-disabled');
-                btn.querySelector('span').textContent = '请激活后继续使用';
-            }
-        }
-        updateQuotaDisplay();
-
-        // 检测后端
-        fetch('/api/generate',{method:'OPTIONS'}).then(r=>{
-            if(r.ok||r.status===405){hasBackend=true;document.getElementById('backendStatus').textContent='AI服务在线';document.getElementById('backendStatus').style.color='#059669';updateQuotaDisplay();}
-            else throw new Error();
-        }).catch(()=>{document.getElementById('backendStatus').textContent='演示模式（未部署后端）';});
-
-        // ============ UI ============
-        function toggleApiPanel(){const p=document.getElementById('apiPanel'),a=document.getElementById('apiArrow');p.classList.toggle('open');a.style.transform=p.classList.contains('open')?'rotate(180deg)':'';}
-        function selectDuration(btn,val){document.querySelectorAll('.duration-btn').forEach(b=>{b.classList.remove('selected-duration','border-green-500','text-green-400','bg-green-500/10');b.classList.add('border-white/10','text-gray-400');});btn.classList.remove('border-white/10','text-gray-400');btn.classList.add('selected-duration','border-green-500','text-green-400','bg-green-500/10');document.getElementById('duration').value=val;}
-        function selectFormula(card,formula){document.querySelectorAll('.formula-card').forEach(c=>c.classList.remove('selected'));if(document.getElementById('formula').value===formula){document.getElementById('formula').value='';}else{card.classList.add('selected');document.getElementById('formula').value=formula;}}
-
-        // ============ 核心：生成 ============
-        async function generateScripts(){
-            const industry=document.getElementById('industry').value.trim();
-            const sellingPoint=document.getElementById('sellingPoint').value.trim();
-            const targetAudience=document.getElementById('targetAudience').value.trim();
-            const duration=document.getElementById('duration').value;
-            const formula=document.getElementById('formula').value;
-            const customKey=document.getElementById('apiKey').value.trim();
-
-            if(!industry||!sellingPoint){showToast('请填写行业和产品卖点','error');return;}
-
-            if(!authToken || !codeInfo){
-                if(!hasTrialRemaining()){
-                    document.getElementById('quotaModalTitle').textContent = '请输入激活码';
-                    document.getElementById('quotaModalDesc').textContent = '试用次数已用完，获取激活码继续使用';
-                    document.getElementById('activateBtn').textContent = '验证激活码';
-                    document.getElementById('activateStatus').textContent = '';
-                    document.getElementById('activationInput').value = '';
-                    document.getElementById('activationError').classList.add('hidden');
-                    document.getElementById('quotaModal').classList.remove('hidden');
-                    return;
-                }
-            }
-
-            if(codeInfo.type !== 'unlimited' && codeInfo.remaining <= 0){
-                document.getElementById('quotaModalTitle').textContent = '次数已用完';
-                document.getElementById('quotaModalDesc').textContent = '当前激活码次数已用完，请获取新码';
-                document.getElementById('activateBtn').textContent = '输入新激活码';
-                document.getElementById('activateStatus').textContent = '';
-                document.getElementById('activationInput').value = '';
-                document.getElementById('activationError').classList.add('hidden');
-                document.getElementById('quotaModal').classList.remove('hidden');
-                return;
-            }
-
-            const btn=document.getElementById('generateBtn');
-            const orig=btn.innerHTML;
-            btn.innerHTML='<div class="loading-dots flex items-center gap-1"><span class="w-2 h-2 bg-white rounded-full"></span><span class="w-2 h-2 bg-white rounded-full"></span><span class="w-2 h-2 bg-white rounded-full"></span></div><span class="ml-2 text-sm">AI创作中...</span>';
-            btn.disabled=true;btn.classList.add('opacity-80');
-
-            try{
-                let scripts;
-                if(hasBackend && customKey){
-                    scripts = await callDeepSeekDirect(industry,sellingPoint,targetAudience,duration,formula,customKey);
-                } else {
-                    scripts = await callBackend(industry,sellingPoint,targetAudience,duration,formula);
-                }
-                currentScripts=scripts;renderScripts(scripts);addToHistory(industry,sellingPoint,formula||'智能匹配');
-                todayStats.count++;todayStats.scripts+=5;localStorage.setItem('todayStats',JSON.stringify(todayStats));if(!authToken){useTrial();}updateStatsDisplay();
-                showToast('生成成功！','success');
-            }catch(err){
-                if(err.message === 'NEED_ACTIVATION'){
-                    clearAuth();
-                    document.getElementById('quotaModalTitle').textContent = '请重新激活';
-                    document.getElementById('quotaModalDesc').textContent = '激活码已失效，请获取新码';
-                    document.getElementById('activateBtn').textContent = '验证激活码';
-                    document.getElementById('activationInput').value = '';
-                    document.getElementById('activationError').classList.add('hidden');
-                    document.getElementById('quotaModal').classList.remove('hidden');
-                    updateQuotaDisplay();
-                } else {
-                    showToast('生成失败：'+err.message,'error');
-                }
-            }
-            finally{btn.innerHTML=orig;btn.disabled=false;btn.classList.remove('opacity-80');}
-        }
-
-        // 后端代理
-        async function callBackend(industry,sellingPoint,targetAudience,duration,formula){
-            const headers = {'Content-Type':'application/json'};
-            if(authToken) headers['Authorization'] = 'Bearer ' + authToken;
-            const res=await fetch('/api/generate',{method:'POST',headers,body:JSON.stringify({industry,sellingPoint,targetAudience,duration,formula})});
-            if(!res.ok){
-                const e=await res.json().catch(()=>({}));
-                if(e.needActivation) throw new Error('NEED_ACTIVATION');
-                throw new Error(e.error||'服务繁忙');
-            }
-            const data=await res.json();
-            if(typeof data.remaining !== 'undefined' && codeInfo) {
-                codeInfo.remaining = data.remaining;
-                codeInfo.type = data.codeType || codeInfo.type;
-                localStorage.setItem('foxCodeInfo', JSON.stringify(codeInfo));
-                updateQuotaDisplay();
-            }
-            return parseScripts(data.choices[0].message.content);
-        }
-
-        // 直连 DeepSeek
-        async function callDeepSeekDirect(industry,sellingPoint,targetAudience,duration,formula,apiKey){
-            const prompt=`你是一位抖音顶级文案策划，擅长写高转化口播脚本。请根据以下信息，生成5条口播脚本：\n\n【行业】：${industry}\n【产品/卖点】：${sellingPoint}\n【目标人群】：${targetAudience||'泛人群'}\n【视频时长】：${duration}\n【爆款公式】：${formula||'智能匹配'}\n\n【输出要求】\n每条脚本必须包含以下结构：\n1. 【3秒钩子】：前3秒必须抛出悬念/冲突/反认知\n2. 【痛点共鸣】：描述目标人群的具体困扰\n3. 【解决方案】：自然植入产品卖点，不硬广\n4. 【信任背书】：用数据、对比、案例建立可信度\n5. 【行动指令】：明确告诉用户点赞/关注/评论/购买\n6. 【拍摄建议】：语气、表情、画面、BGM建议\n\n【风格要求】\n- 口语化，像朋友聊天，不要用书面语\n- 每句话控制在15字以内，适合口播\n- 情绪递进：从好奇→共鸣→信任→行动\n- 避免"家人们""绝绝子"等过度网络用语\n\n请直接输出5条完整脚本，每条之间用"---SCRIPT_SPLIT---"分隔。`;
-            const res=await fetch('https://api.deepseek.com/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${apiKey}`},body:JSON.stringify({model:'deepseek-chat',messages:[{role:'user',content:prompt}],temperature:0.85,max_tokens:4000})});
-            if(!res.ok){const e=await res.json();throw new Error(e.error?.message||'API请求失败');}
-            const data=await res.json();
-            return parseScripts(data.choices[0].message.content);
-        }
-
-        function parseScripts(content){
-            // 兼容两种分隔符：---SCRIPT_SPLIT--- 和 --- +
-            let raw=content.split('---SCRIPT_SPLIT---').filter(s=>s.trim());
-            if(raw.length<=1) raw=content.split(/\n---\n/).filter(s=>s.trim());
-            return raw.map((r,idx)=>{
-                const s={};const lines=r.trim().split('\n');
-                let curKey=null,curVal=[];
-                const fields={hook:'【3秒钩子】',pain:'【痛点共鸣】',solution:'【解决方案】',trust:'【信任背书】',action:'【行动指令】',tip:'【拍摄建议】'};
-                for(const line of lines){
-                    let matched=null;
-                    for(const[k,v]of Object.entries(fields)){if(line.includes(v)){matched=k;break;}}
-                    if(matched){
-                        if(curKey&&curVal.length){s[curKey]=curVal.join('\n').trim();}
-                        curKey=matched;curVal=[];
-                        // 提取同行内容
-                        const afterLabel=line.substring(line.indexOf(fields[matched])+fields[matched].length).replace(/^[：:]\s*/,'').trim();
-                        if(afterLabel)curVal.push(afterLabel);
-                    }
-                    else if(curKey){curVal.push(line);}
-                }
-                if(curKey&&curVal.length)s[curKey]=curVal.join('\n').trim();
-                if(!s.hook)s.content=r.trim();
-                return{id:idx+1,...s};
-            });
-        }
-
-        // ============ 演示数据 ============
-        function generateDemoScripts(industry,sellingPoint,targetAudience,duration,formula){
-            const F={
-                '揭秘型':[{hook:`${industry}干了8年，今天说点得罪人的大实话。`,pain:`你是不是也踩过这个坑？花了不少钱，结果完全没效果。`,solution:`其实真正懂行的人都在用${sellingPoint}，只是没人告诉你。`,trust:`我们服务了3000+客户，复购率能做到67%，靠的就是这个。`,action:`先别划走，看完这条视频，至少帮你省下一半预算。`,tip:`语气真诚，像跟朋友掏心窝子。BGM用舒缓的钢琴曲。`},{hook:`为什么${industry}老板从来不让自己家人用自家的产品？`,pain:`因为市面上80%的产品都是智商税，看起来光鲜，实际一塌糊涂。`,solution:`但${sellingPoint}不一样，我们自己团队都在用。`,trust:`上个月刚给公司全员配了一套，反馈出奇地好。`,action:`评论区扣"真相"，我把行业内幕文档发你。`,tip:`开头表情严肃，制造悬念感。BGM用悬疑风格。`},{hook:`${industry}内部培训资料，本来不该外传的。`,pain:`太多人被割韭菜了，花大价钱买到的都是二手信息。`,solution:`${sellingPoint}，这是我们内部测试了6个月才定下来的方案。`,trust:`不吹牛，直接看数据，转化率提升了3倍。`,action:`赶紧收藏，这条可能很快就被下了。`,tip:`压低声音说"本来不该外传"，制造稀缺感。`},{hook:`去${industry}店之前，先把这条视频看完。`,pain:`不然你大概率会被套路，多花冤枉钱。`,solution:`记住这个标准：${sellingPoint}，达不到这个要求的直接pass。`,trust:`我做了5年${industry}供应链，什么门道都清楚。`,action:`转发给你身边需要的人，能救一个是一个。`,tip:`像好心的邻居提醒，亲切但有力量。`},{hook:`${industry}的水有多深？我说出来你可能不信。`,pain:`同样的东西，不同渠道价格差10倍，品质还一样。`,solution:`${sellingPoint}，源头直供，没有中间商赚差价。`,trust:`支持开箱验货，不满意7天无理由，底气就是这么足。`,action:`点我头像进主页，第一个视频有领取方式。`,tip:`摇头+叹气开场，引发好奇。BGM节奏逐渐加快。`}],
-                '反转型':[{hook:`你以为${industry}越贵越好？错，大错特错。`,pain:`我之前也这么认为，直到花了3万块买了教训。`,solution:`后来才发现，${sellingPoint}才是核心，跟价格没关系。`,trust:`把这个标准告诉10个朋友，9个都说之前白花钱了。`,action:`双击屏幕，我把这个选品清单整理好了放评论区。`,tip:`开头用力挥手说"错"，制造冲突感。`},{hook:`别再说${sellingPoint}没用了，那是你没用过对的。`,pain:`市面上假货太多，很多人第一次体验就差，直接劝退。`,solution:`认准这三个特征：${sellingPoint.split('，').slice(0,3).join('、')}。`,trust:`我们实验室测了50款，只有3款达标。`,action:`关注我，下期告诉你那3款具体是什么。`,tip:`坚定语气，像纠正一个老朋友的偏见。`},{hook:`我劝你别买${industry}的最新款。`,pain:`不是不好，是太新了，溢价太高，功能你用不上。`,solution:`反而${sellingPoint}这种经典方案，稳定、实用、性价比高。`,trust:`从业10年，我见过太多追新最后被坑的案例。`,action:`想要性价比清单的，评论区扣"清单"。`,tip:`反常识开头，降低用户防御心理。`},{hook:`${targetAudience||'很多人'}都在犯的错：以为贵的就是好的。`,pain:`同样的需求，有人花3000，有人花300，效果居然一样。`,solution:`${sellingPoint}，300块搞定的事，干嘛花3000？`,trust:`不瞒你说，我自己家里用的就是这个。`,action:`觉得有用的点个赞，让更多人看到。`,tip:`摊手动作，配合无奈笑容。`},{hook:`之前我也觉得${industry}都是骗人的。`,pain:`直到我自己亲身试了一个月，彻底改观了。`,solution:`关键就是选对${sellingPoint}，选对了事半功倍。`,trust:`现在团队20多号人，人手一份，效率确实高。`,action:`如果你也在犹豫，不妨先试试，反正成本不高。`,tip:`真诚分享感，像推荐一部好电影。`}],
-                '省钱型':[{hook:`学会这一招，${industry}预算直接砍半。`,pain:`你是不是每年在${industry}上花大几万，效果还一般？`,solution:`${sellingPoint}，成本只要原来的1/5，效果翻倍。`,trust:`帮客户算过账，一年省下来的钱够买辆代步车了。`,action:`截图保存这条，下次采购直接照着来。`,tip:`伸出手指比划"砍半"，画面感要强。`},{hook:`${industry}没必要花冤枉钱，这钱留着吃火锅不香吗？`,pain:`太多中间商赚差价了，到你手里已经转了3手。`,solution:`直接找源头，${sellingPoint}，没有溢价。`,trust:`同样的品质，别人花1000，你花300，省下的都是利润。`,action:`评论区扣"源头"，我把渠道推你。`,tip:`轻松幽默语气，像闺蜜聊天。`},{hook:`月薪3000和月薪3万，在${industry}上的区别就一点。`,pain:`不是收入差距，是信息差。懂行的知道去哪找高性价比。`,solution:`${sellingPoint}，信息差抹平了，谁都能享受高品质。`,trust:`这个渠道我自己用了2年，稳定可靠。`,action:`关注我不迷路，每周分享一个省钱技巧。`,tip:`对比手势，强化"差距"概念。`},{hook:`别再当冤大头了，${industry}的水太深。`,pain:`同样的${sellingPoint}，不同平台价格差3倍。`,solution:`找对人，找对渠道，品质一样，价格对折。`,trust:`我已经帮500+人对接了源头，零差评。`,action:`点赞过1000，我公开这个渠道名单。`,tip:`痛心疾首状，引发共鸣。`},{hook:`花小钱办大事，${industry}也能这么干。`,pain:`不是非得大投入才能出效果，关键是思路要对。`,solution:`${sellingPoint}，小成本试错，效果出来了再放大。`,trust:`我自己创业就是这么过来的，从0到1没花冤枉钱。`,action:`觉得实在的点个关注，持续分享干货。`,tip:`自信微笑，传递"我可以你也能行"的信念。`}],
-                '痛点型':[{hook:`如果你也在为${industry}发愁，这条视频就是为你拍的。`,pain:`找了一圈，要么太贵，要么不靠谱，心累。`,solution:`${sellingPoint}，专门针对这个痛点设计的。`,trust:`上线3个月，帮助2000+用户解决了同样的问题。`,action:`看完觉得有用，转发给同样需要的朋友。`,tip:`直视镜头，像对朋友说话。BGM温暖治愈。`},{hook:`${targetAudience||'很多人'}最头疼的事，终于有解了。`,pain:`${industry}这块一直找不到满意的，试一家踩一家雷。`,solution:`${sellingPoint}，我们测了8个月才推出来。`,trust:`内测阶段用户满意度96%，正式上线后口碑持续走高。`,action:`点击主页链接，前100名有专属福利。`,tip:`如释重负的表情，传递"终于等到"的感觉。`},{hook:`做${industry}的，没有不崩溃的，除非…`,pain:`每天都在救火，问题反复出现，根本治标不治本。`,solution:`除非你从根源解决，${sellingPoint}就是治本的那一剂。`,trust:`用了这个方案，客服投诉率下降了70%。`,action:`想要方案的，评论区留下你的行业，我发你。`,tip:`欲言又止，制造悬念后揭晓答案。`},{hook:`被${industry}坑过的，评论区扣个1。`,pain:`花了钱、费了时间，最后效果跟预期差十万八千里。`,solution:`不是你要求高，是之前没遇到${sellingPoint}。`,trust:`复购率说明一切，老客户带新客户占比超过40%。`,action:`扣1的朋友，我私信你一份避坑指南。`,tip:`邀请互动，评论区先热起来。`},{hook:`如果你也受够了${industry}的这些糟心事…`,pain:`拖延、低效、返工、沟通成本极高，一天下来啥也没干成。`,solution:`${sellingPoint}，把这些问题一次性解决掉。`,trust:`上线第一天，就有用户说"早遇到你们就好了"。`,action:`别犹豫，先体验，好用再决定。`,tip:`共情语气，像理解对方的老朋友。`}],
-                '对比型':[{hook:`${industry}选A还是选B？今天一次性说清楚。`,pain:`很多人在这两个选项之间纠结，白白浪费决策时间。`,solution:`直接说结论：选${sellingPoint}，原因有三。`,trust:`第一点…第二点…第三点…逻辑清晰，不绕弯子。`,action:`同意我的点个赞，有不同意见欢迎评论区讨论。`,tip:`左右手对比手势，视觉化呈现。`},{hook:`300块的${industry}和3000块的，到底差在哪？`,pain:`外观看起来差不多，用起来天差地别。`,solution:`核心差异就在${sellingPoint}，这个指标一对比，高下立判。`,trust:`我们拆机对比过，用料、工艺、稳定性完全不是一个级别。`,action:`想要对比表格的，关注后私信"对比"自动发你。`,tip:`拿出实物或图片对比，增强说服力。`},{hook:`传统${industry} vs 新方案，看完你就知道怎么选。`,pain:`老办法不是不好，是太慢、太费人、成本太高。`,solution:`${sellingPoint}，效率提升5倍，成本降到1/3。`,trust:`已经有100+企业完成切换，没有一家后悔的。`,action:`时代在变，工具也该升级了，你说呢？`,tip:`用数据说话，屏幕展示对比表格。`},{hook:`外行看热闹，内行看门道。${industry}怎么选？`,pain:`表面参数都差不多，真正决定体验的是隐藏细节。`,solution:`${sellingPoint}，这个细节90%的人会忽略，但决定了80%的体验。`,trust:`做了8年${industry}，这点门道还是清楚的。`,action:`觉得有收获的收藏起来，买之前翻出来看。`,tip:`神秘语气，像传授独家秘籍。`},{hook:`同样是${industry}，为什么别人的效果比你好10倍？`,pain:`不是运气，是方法。大多数人都在错误的方向上努力。`,solution:`${sellingPoint}，方向对了，事半功倍。`,trust:`同样的投入，用对方案，产出能差出一个量级。`,action:`关注我，每周拆解一个行业案例。`,tip:`激发好奇心，让用户想知道自己差在哪。`}],
-                '故事型':[{hook:`昨天发生了一件事，让我对${industry}彻底改观了。`,pain:`我一个朋友，做了3年${industry}，差点就放弃了。`,solution:`直到遇到${sellingPoint}，局面完全扭转。`,trust:`3个月时间，从亏损到盈利，现在准备开第二家店了。`,action:`有时候不是你不努力，是方向没对。`,tip:`讲故事语气，娓娓道来。BGM舒缓有叙事感。`},{hook:`分享一个我自己的真实经历。`,pain:`去年这个时候，我在${industry}上栽了个大跟头，损失了十几万。`,solution:`后来经人推荐试了${sellingPoint}，才慢慢缓过来。`,trust:`现在回头看，那次失败反而是转折点。`,action:`如果你也在低谷期，别放弃，转机可能就在下一个选择。`,tip:`真诚、略带感慨的语气，建立深度信任。`},{hook:`有个客户的故事，我想讲给你听。`,pain:`她一开始完全不信${industry}能有效果，觉得都是智商税。`,solution:`抱着试试看的心态用了${sellingPoint}，结果…`,trust:`一周后主动来找我，说后悔没早点遇到。`,action:`事实胜于雄辩，你自己试试就知道了。`,tip:`第三人称叙事，客观中立更有说服力。`},{hook:`3年前，如果有人告诉我${sellingPoint}能改变我的生意，我是不信的。`,pain:`那时候刚入行，踩了无数坑，交了不少学费。`,solution:`直到一次偶然的机会接触到这个方案，一切都不一样了。`,trust:`从月销5万到月销50万，只用了6个月。`,action:`不是神话，是方法。方法对了，普通人也能做到。`,tip:`回顾式叙述，带有时间跨度的厚重感。`},{hook:`今天早上，我收到了一条消息，看完沉默了。`,pain:`一个老客户说，因为用了我们的${industry}方案，公司活下来了。`,solution:`其实没做什么特别的，就是${sellingPoint}，把基础打扎实了。`,trust:`有时候最朴素的道理，反而最有力量。`,action:`做好每一件小事，结果自然不会差。`,tip:`情绪递进，从沉重到温暖。结尾升华主题。`}]
-            };
-            const sel=formula&&F[formula]?F[formula]:F['揭秘型'];
-            return sel.map((s,i)=>({id:i+1,hook:s.hook,pain:s.pain,solution:s.solution,trust:s.trust,action:s.action,tip:s.tip}));
-        }
-
-        // ============ 渲染 ============
-        function renderScripts(scripts){
-            const c=document.getElementById('scriptsContainer'),r=document.getElementById('resultArea');
-            c.innerHTML=scripts.map(s=>`
-                <div class="script-card glass-card rounded-2xl p-5 relative group">
-                    <div class="flex items-center justify-between mb-3">
-                        <div class="flex items-center gap-2.5">
-                            <span class="w-7 h-7 rounded-lg bg-gradient-to-br from-green-400 to-emerald-600 flex items-center justify-center text-xs font-bold text-black">${s.id}</span>
-                            <span class="tag px-2 py-0.5 rounded text-[11px] font-medium text-green-700">脚本 ${s.id}</span>
-                        </div>
-                        <button onclick="copyScript(${s.id-1})" class="opacity-0 group-hover:opacity-100 transition-opacity px-2.5 py-1.5 glass-card rounded-lg text-[11px] text-gray-600 hover:text-gray-800 hover:border-green-500/30 flex items-center gap-1.5">
-                            <i class="fas fa-copy"></i>复制
-                        </button>
-                    </div>
-                    ${s.hook?`
-                    <div class="space-y-2.5">
-                        <div class="bg-white/60 rounded-xl p-3.5 border-l-[3px] border-pink-500">
-                            <div class="flex items-center gap-2 mb-1"><span class="tag-pink px-1.5 py-0.5 rounded text-[10px] font-bold">3秒钩子</span></div>
-                            <p class="text-gray-800 text-sm leading-relaxed font-medium">${s.hook}</p>
-                        </div>
-                        <div class="bg-white/60 rounded-xl p-3.5 border-l-[3px] border-yellow-500">
-                            <div class="flex items-center gap-2 mb-1"><span class="tag-yellow px-1.5 py-0.5 rounded text-[10px] font-bold">痛点共鸣</span></div>
-                            <p class="text-gray-600 text-sm leading-relaxed">${s.pain}</p>
-                        </div>
-                        <div class="bg-white/60 rounded-xl p-3.5 border-l-[3px] border-green-500">
-                            <div class="flex items-center gap-2 mb-1"><span class="tag px-1.5 py-0.5 rounded text-[10px] font-bold">解决方案</span></div>
-                            <p class="text-gray-600 text-sm leading-relaxed">${s.solution}</p>
-                        </div>
-                        <div class="bg-white/60 rounded-xl p-3.5 border-l-[3px] border-blue-500">
-                            <div class="flex items-center gap-2 mb-1"><span class="tag-blue px-1.5 py-0.5 rounded text-[10px] font-bold">信任背书</span></div>
-                            <p class="text-gray-600 text-sm leading-relaxed">${s.trust}</p>
-                        </div>
-                        <div class="bg-white/60 rounded-xl p-3.5 border-l-[3px] border-purple-500">
-                            <div class="flex items-center gap-2 mb-1"><span class="tag-purple px-1.5 py-0.5 rounded text-[10px] font-bold">行动指令</span></div>
-                            <p class="text-gray-600 text-sm leading-relaxed">${s.action}</p>
-                        </div>
-                        ${s.tip?`<div class="mt-2 pt-2 border-t border-white/5"><div class="flex items-start gap-2 text-[11px] text-gray-500"><i class="fas fa-video mt-0.5 text-gray-600 text-[10px]"></i><span>${s.tip}</span></div></div>`:''}
-                    </div>`:`<div class="text-gray-600 text-sm leading-relaxed whitespace-pre-line">${s.content||''}</div>`}
-                </div><div class="mt-3 pt-2 border-t border-white/5 text-right"><span class="text-[10px] text-gray-600">— Fox脚本 AI生成</span></div>`).join('');
-            r.classList.remove('hidden');r.scrollIntoView({behavior:'smooth',block:'start'});
-        }
-
-        function copyScript(i){const s=currentScripts[i];if(!s)return;let t=s.hook?`【3秒钩子】${s.hook}\n\n【痛点共鸣】${s.pain}\n\n【解决方案】${s.solution}\n\n【信任背书】${s.trust}\n\n【行动指令】${s.action}${s.tip?'\n\n【拍摄建议】'+s.tip:''}`:s.content||'';navigator.clipboard.writeText(t).then(()=>showToast('已复制到剪贴板','success'));}
-        function copyAllScripts(){if(!currentScripts.length)return;const t=currentScripts.map((s,i)=>s.hook?`=== 脚本 ${i+1} ===\n【3秒钩子】${s.hook}\n【痛点共鸣】${s.pain}\n【解决方案】${s.solution}\n【信任背书】${s.trust}\n【行动指令】${s.action}${s.tip?'\n【拍摄建议】'+s.tip:''}`:`=== 脚本 ${i+1} ===\n${s.content||''}`).join('\n\n');navigator.clipboard.writeText(t).then(()=>showToast('全部脚本已复制','success'));}
-
-        // ============ 历史记录 ============
-        function addToHistory(industry,sellingPoint,formula){
-            const item={id:Date.now(),industry,sellingPoint:sellingPoint.length>18?sellingPoint.slice(0,18)+'...':sellingPoint,formula,time:new Date().toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'}),scripts:currentScripts};
-            history.unshift(item);if(history.length>20)history=history.slice(0,20);localStorage.setItem('scriptHistory',JSON.stringify(history));renderHistory();
-        }
-        function renderHistory(){
-            const l=document.getElementById('historyList');
-            if(!history.length){l.innerHTML='<p class="text-xs text-gray-500 text-center py-6">暂无历史记录</p>';return;}
-            l.innerHTML=history.map(item=>`<div onclick="restoreHistory(${item.id})" class="history-item glass-card rounded-xl p-3 cursor-pointer border border-white/5"><div class="flex items-center justify-between mb-1"><span class="text-sm font-medium text-gray-800 truncate">${item.industry}</span><span class="text-[10px] text-gray-600">${item.time}</span></div><p class="text-[11px] text-gray-500 truncate mb-1">${item.sellingPoint}</p><div class="flex gap-2">${item.formula?`<span class="tag px-1.5 py-0.5 rounded text-[10px]">${item.formula}</span>`:''}<span class="text-[10px] text-gray-600">5条脚本</span></div></div>`).join('');
-        }
-        function restoreHistory(id){const item=history.find(h=>h.id===id);if(item&&item.scripts){currentScripts=item.scripts;renderScripts(item.scripts);showToast('已恢复历史记录','success');}}
-        function clearHistory(){history=[];localStorage.removeItem('scriptHistory');renderHistory();showToast('历史记录已清空','success');}
-        function updateStatsDisplay(){document.getElementById('todayCount').textContent=todayStats.count;document.getElementById('totalScripts').textContent=todayStats.scripts;}
-
-        // ============ Toast ============
-        function showToast(msg,type='success'){
-            const c=document.getElementById('toastContainer');
-            const d=document.createElement('div');
-            const bg=type==='success'?'bg-green-500/15 border-green-500/25 text-green-400':'bg-red-500/15 border-red-500/25 text-red-400';
-            const ic=type==='success'?'fa-check-circle':'fa-exclamation-circle';
-            d.className=`toast glass-card rounded-xl px-4 py-2.5 border ${bg} flex items-center gap-2.5 min-w-[180px] pointer-events-auto`;
-            d.innerHTML=`<i class="fas ${ic} text-sm"></i><span class="text-sm font-medium">${msg}</span>`;
-            c.appendChild(d);
-            setTimeout(()=>{d.style.opacity='0';d.style.transform='translateX(100%)';d.style.transition='all 0.25s ease';setTimeout(()=>d.remove(),250);},2800);
-        }
-
-        // ============ PWA ============
-        if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js').catch(()=>{});}
-
-        // ============ 激活码相关 ============
-        async function activateCode(){
-            const code = document.getElementById('activationInput').value.trim();
-            if(!code){document.getElementById('activationError').textContent='请输入激活码';document.getElementById('activationError').classList.remove('hidden');return;}
-            const btn = document.getElementById('activateBtn');
-            btn.disabled = true;
-            btn.innerHTML = '<div class="loading-dots flex items-center gap-1 justify-center"><span class="w-2 h-2 bg-white rounded-full"></span><span class="w-2 h-2 bg-white rounded-full"></span><span class="w-2 h-2 bg-white rounded-full"></span></div>';
-            document.getElementById('activationError').classList.add('hidden');
-            try{
-                const fp = getFingerprint();
-                const res = await fetch('/api/activate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code,fingerprint:fp})});
-                const data = await res.json();
-                if(!res.ok) throw new Error(data.error||'验证失败');
-                saveAuth(data.token, {type:data.type, remaining:data.remaining, maxUses:data.maxUses, expiresAt:data.expiresAt});
-                document.getElementById('activateStatus').textContent = data.type==='unlimited'?'无限次已激活':'激活成功，剩余 '+data.remaining+' 次';
-                document.getElementById('activateStatus').style.color = '#4ade80';
-                showToast('激活成功！','success');
-                setTimeout(()=>document.getElementById('quotaModal').classList.add('hidden'),1500);
-            }catch(err){
-                document.getElementById('activationError').textContent = err.message;
-                document.getElementById('activationError').classList.remove('hidden');
-            }finally{
-                btn.disabled = false;
-                btn.innerHTML = '验证激活码';
-            }
-        }
-        function closeQuotaModal(){document.getElementById('quotaModal').classList.add('hidden');}
-        document.addEventListener('keydown',e=>{if(e.key==='Escape')closeQuotaModal();});
-
-        // 快捷操作
-        document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.ctrlKey)generateScripts();});
-    </script>
+document.getElementById('activateModal').addEventListener('click', function(e) {
+  if (e.target === this) this.classList.add('hidden');
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') document.getElementById('activateModal').classList.add('hidden'); });
+</script>
 </body>
 </html>
