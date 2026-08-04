@@ -438,7 +438,9 @@
         async function callBackend(industry,sellingPoint,targetAudience,duration,formula){
             const headers = {'Content-Type':'application/json'};
             if(authToken) headers['Authorization'] = 'Bearer ' + authToken;
-            const res=await fetch('/api/generate',{method:'POST',headers,body:JSON.stringify({industry,sellingPoint,targetAudience,duration,formula})});
+            const body = {industry,sellingPoint,targetAudience,duration,formula};
+            if(!authToken) body.fingerprint = getFingerprint();
+            const res=await fetch('/api/generate',{method:'POST',headers,body:JSON.stringify(body)});
             if(!res.ok){
                 const e=await res.json().catch(()=>({}));
                 if(e.needActivation) throw new Error('NEED_ACTIVATION');

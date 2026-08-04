@@ -40,13 +40,24 @@ export async function onRequest(context) {
     });
   }
 
-  const { industry, sellingPoint, targetAudience, duration, formula, activationCode } = body;
+  const { industry, sellingPoint, targetAudience, duration, formula, activationCode, fingerprint } = body;
 
   // Direct activation code in generate request (fallback)
   if (!codeData && activationCode) {
     const normalized = activationCode.toUpperCase().replace(/\s/g, "");
     codeData = await env.SCRIPT_TOOL_KV.get(`code:${normalized}`, "json");
     code = normalized;
+  }
+
+  // Trial mode: 3 free generations per fingerprint, 24h TTL
+  if (!codeData && fingerprint) {
+    const trialKey = `trial:${fingerprint}`;
+    const trialUsed = parseInt(await env.SCRIPT_TOOL_KV.get(trialKey) || "0");
+    if (trialUsed < 3) {
+      // Allow trial generation - skip auth checks
+      codeData = { type: "trial", active: true, used: trialUsed, maxUses: 3 };
+      code = trialKey;
+    }
   }
 
   // No valid code at all
@@ -127,11 +138,16 @@ export async function onRequest(context) {
       codeData.used = (codeData.used || 0) + 1;
       await env.SCRIPT_TOOL_KV.put(`code:${code}`, JSON.stringify(codeData));
     }
+    // Track trial usage
+    if (codeData.type === "trial") {
+      await env.SCRIPT_TOOL_KV.put(code, String(codeData.used + 1), { expirationTtl: 86400 });
+    }
 
     const data = await dsResp.json();
 
-    // Inject remaining info
-    const remaining = codeData.type === "unlimited" ? -1 : (codeData.maxUses - codeData.used);
+    const remaining = codeData.type === "trial" ? (3 - codeData.used - 1) :
+                     codeData.type === "unlimited" ? -1 :
+                     (codeData.maxUses - codeData.used);
     data.remaining = remaining;
     data.codeType = codeData.type;
 
