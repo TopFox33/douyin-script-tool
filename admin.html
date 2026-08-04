@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fox脚本 · 管理后台</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+body{background:#0a0a0a;color:#fff;font-family:'Noto Sans SC',sans-serif;min-height:100vh;}
+.glass{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);backdrop-filter:blur(20px);}
+.card{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);border-radius:16px;}
+.btn-green{background:linear-gradient(135deg,#22c55e,#16a34a);border-radius:12px;font-weight:600;transition:all .2s;}
+.btn-green:hover{opacity:0.9;transform:translateY(-1px);}
+.btn-danger{background:#dc2626;border-radius:12px;font-weight:600;transition:all .2s;}
+.btn-danger:hover{opacity:0.9;}
+input,select{background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.1);border-radius:10px;color:#fff;padding:8px 14px;font-size:14px;}
+input:focus,select:focus{outline:none;border-color:rgba(34,197,94,.5);box-shadow:0 0 0 2px rgba(34,197,94,.1);}
+.toast{position:fixed;top:16px;right:16px;z-index:100;animation:slideIn .25s ease-out;}
+@keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
+</style>
+</head>
+<body class="p-4 md:p-8">
+<div id="loginScreen" class="flex items-center justify-center min-h-[80vh]">
+  <div class="card p-8 w-full max-w-sm text-center">
+    <h2 class="text-2xl font-bold mb-2">Fox脚本</h2>
+    <p class="text-sm text-gray-400 mb-6">管理后台</p>
+    <input type="password" id="adminKey" placeholder="管理员密码" class="w-full mb-4 text-center">
+    <button onclick="login()" class="btn-green w-full py-3 text-white">登录</button>
+  </div>
+</div>
+
+<div id="mainScreen" class="hidden max-w-6xl mx-auto">
+  <div class="flex items-center justify-between mb-8">
+    <div>
+      <h1 class="text-2xl font-bold">Fox脚本 管理后台</h1>
+      <p class="text-sm text-gray-500 mt-1">激活码管理</p>
+    </div>
+    <div class="flex items-center gap-3">
+      <span id="statsBar" class="text-sm text-gray-400"></span>
+      <button onclick="logout()" class="text-sm text-gray-500 hover:text-red-400">退出</button>
+    </div>
+  </div>
+
+  <!-- Generate -->
+  <div class="card p-6 mb-6">
+    <h3 class="font-bold mb-4">生成新激活码</h3>
+    <div class="grid md:grid-cols-5 gap-3 mb-4">
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">数量</label>
+        <input type="number" id="genCount" value="1" min="1" max="100" class="w-full">
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">类型</label>
+        <select id="genType" class="w-full">
+          <option value="standard">普通码</option>
+          <option value="unlimited">无限次</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">次数（普通码）</label>
+        <input type="number" id="genMaxUses" value="100" min="1" class="w-full">
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">有效期（留空=永久）</label>
+        <input type="date" id="genExpiresAt" class="w-full">
+      </div>
+      <div class="flex items-end">
+        <button onclick="generateCodes()" class="btn-green w-full py-2.5 text-white">生成</button>
+      </div>
+    </div>
+    <div id="genResult" class="hidden mt-4 p-4 bg-black/30 rounded-xl text-sm font-mono text-green-400 whitespace-pre-wrap"></div>
+  </div>
+
+  <!-- Code List -->
+  <div class="card p-6">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="font-bold">激活码列表</h3>
+      <button onclick="loadCodes()" class="text-sm text-gray-400 hover:text-white transition-colors">刷新</button>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="text-left text-gray-500 border-b border-white/5">
+            <th class="pb-3 pr-4 font-medium">激活码</th>
+            <th class="pb-3 pr-4 font-medium">类型</th>
+            <th class="pb-3 pr-4 font-medium">已用/上限</th>
+            <th class="pb-3 pr-4 font-medium">设备</th>
+            <th class="pb-3 pr-4 font-medium">有效期</th>
+            <th class="pb-3 pr-4 font-medium">状态</th>
+            <th class="pb-3 font-medium">操作</th>
+          </tr>
+        </thead>
+        <tbody id="codeTable"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div id="toastContainer"></div>
+
+<script>
+let token = localStorage.getItem('adminToken');
+
+function showToast(msg, color='green') {
+  const c = document.getElementById('toastContainer');
+  const d = document.createElement('div');
+  d.className = 'toast glass px-4 py-2.5 rounded-xl text-sm';
+  d.style.color = color === 'green' ? '#4ade80' : '#f87171';
+  d.textContent = msg;
+  c.appendChild(d);
+  setTimeout(() => { d.style.opacity = '0'; d.style.transition = 'opacity .25s'; setTimeout(() => d.remove(), 250); }, 2500);
+}
+
+async function api(path, method='GET', body=null) {
+  const opts = { method, headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` } };
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch('/api/admin' + path, opts);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error);
+  return data;
+}
+
+function login() {
+  const key = document.getElementById('adminKey').value.trim();
+  if (!key) return;
+  token = key;
+  localStorage.setItem('adminToken', key);
+  // Verify
+  api('/codes').then(data => {
+    document.getElementById('loginScreen').classList.add('hidden');
+    document.getElementById('mainScreen').classList.remove('hidden');
+    loadCodes();
+    loadStats();
+  }).catch(() => {
+    localStorage.removeItem('adminToken');
+    token = null;
+    showToast('密码错误', 'red');
+  });
+}
+
+function logout() {
+  localStorage.removeItem('adminToken');
+  location.reload();
+}
+
+// Auto-login if token exists
+if (token) {
+  login();
+}
+
+async function loadStats() {
+  try {
+    const s = await api('/stats');
+    document.getElementById('statsBar').textContent = `共 ${s.totalCodes} 个码 · 启用 ${s.activeCodes} · 已用 ${s.totalUsed}/${s.totalMax}`;
+  } catch(e) {}
+}
+
+async function loadCodes() {
+  try {
+    const data = await api('/codes');
+    const tbody = document.getElementById('codeTable');
+    const codes = (data.codes || []).sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
+    if (!codes.length) {
+      tbody.innerHTML = '<tr><td colspan="7" class="py-8 text-center text-gray-500">暂无激活码，请先生成</td></tr>';
+      return;
+    }
+    tbody.innerHTML = codes.map(c => `
+      <tr class="border-b border-white/5 hover:bg-white/5 transition-colors">
+        <td class="py-3 pr-4 font-mono text-green-400">${c.code}</td>
+        <td class="py-3 pr-4">${c.type === 'unlimited' ? '♾️ 无限次' : '📦 普通'}</td>
+        <td class="py-3 pr-4">${c.used || 0} / ${c.type === 'unlimited' ? '∞' : c.maxUses}</td>
+        <td class="py-3 pr-4 text-xs text-gray-500">${c.deviceFingerprint ? '已绑定' : '未绑定'}</td>
+        <td class="py-3 pr-4 text-xs text-gray-500">${c.expiresAt ? new Date(c.expiresAt).toLocaleDateString('zh-CN') : '永久'}</td>
+        <td class="py-3 pr-4">${c.active ? '<span class="text-green-400">启用</span>' : '<span class="text-red-400">停用</span>'}</td>
+        <td class="py-3">
+          <button onclick="toggleCode('${c.code}', ${c.active})" class="text-xs ${c.active ? 'text-yellow-400' : 'text-green-400'} hover:underline mr-3">${c.active ? '停用' : '启用'}</button>
+          <button onclick="deleteCode('${c.code}')" class="text-xs text-red-400 hover:underline">删除</button>
+        </td>
+      </tr>
+    `).join('');
+    loadStats();
+  } catch(e) {
+    if (e.message === '无权限') { logout(); }
+    showToast('加载失败：' + e.message, 'red');
+  }
+}
+
+async function generateCodes() {
+  const count = parseInt(document.getElementById('genCount').value);
+  const type = document.getElementById('genType').value;
+  const maxUses = parseInt(document.getElementById('genMaxUses').value);
+  const expiresAt = document.getElementById('genExpiresAt').value || null;
+  
+  try {
+    const result = await api('/codes/generate', 'POST', { count, type, maxUses, expiresAt });
+    const codes = result.generated.map(c => c.code).join('\n');
+    document.getElementById('genResult').textContent = codes;
+    document.getElementById('genResult').classList.remove('hidden');
+    showToast(`已生成 ${count} 个激活码`);
+    loadCodes();
+  } catch(e) {
+    showToast(e.message, 'red');
+  }
+}
+
+async function toggleCode(code, currentlyActive) {
+  try {
+    await api(`/codes/${code}`, 'PUT', { active: !currentlyActive });
+    showToast(currentlyActive ? '已停用' : '已启用');
+    loadCodes();
+  } catch(e) {
+    showToast(e.message, 'red');
+  }
+}
+
+async function deleteCode(code) {
+  if (!confirm(`确认删除 ${code}？此操作不可恢复。`)) return;
+  try {
+    await api(`/codes/${code}`, 'DELETE');
+    showToast('已删除');
+    loadCodes();
+  } catch(e) {
+    showToast(e.message, 'red');
+  }
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !document.getElementById('mainScreen').classList.contains('hidden') === false) {
+    // Enter on login screen
+    const ls = document.getElementById('loginScreen');
+    if (!ls.classList.contains('hidden')) login();
+  }
+});
+</script>
+</body>
+</html>

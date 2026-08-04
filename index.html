@@ -256,20 +256,21 @@
         </div>
 
         <footer class="mt-12 md:mt-16 text-center text-gray-600 text-xs md:text-sm pb-8 ios-safe-bottom">
-            <p>爆款口播脚本生成器 · 专为抖音运营人打造</p>
-            <p class="mt-1">Powered by DeepSeek V4 Pro · 数据仅存储于本地</p>
+            <p>Fox脚本 · 专为抖音运营人打造</p>
+            <p class="mt-1">Powered by DeepSeek · 数据仅存储于本地</p>
         </footer>
     </div>
 
-    <!-- 次数用完遮罩 -->
+    <!-- 次数用完/未激活遮罩 -->
     <div id="quotaModal" class="modal-overlay hidden" onclick="if(event.target===this)closeQuotaModal()">
         <div class="modal-card glass-card rounded-2xl p-6 md:p-8 max-w-sm w-full text-center">
-            <div class="text-5xl mb-4">🎬</div>
-            <h2 class="text-xl font-bold text-white mb-2">今日免费次数已用完</h2>
-            <p class="text-sm text-gray-400 mb-6">升级会员，每日无限次生成</p>
-            <button onclick="copyWechat()" class="w-full btn-gradient text-white font-bold py-3 rounded-xl mb-3 text-sm">联系开通会员</button>
-            <button onclick="closeQuotaModal()" class="w-full bg-white/5 hover:bg-white/10 text-gray-400 py-3 rounded-xl text-sm transition-colors">明天再来</button>
-            <p class="text-[11px] text-gray-600 mt-4">会员专享：批量导出 + 全部公式 + 优先生成</p>
+            <div class="text-5xl mb-4">🔑</div>
+            <h2 class="text-xl font-bold text-white mb-2" id="quotaModalTitle">请输入激活码</h2>
+            <p class="text-sm text-gray-400 mb-4" id="quotaModalDesc">获取激活码后即可无限使用</p>
+            <input type="text" id="activationInput" placeholder="FOX-XXXX-XXXX-XXXX" class="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 text-center tracking-widest mb-3 focus:outline-none input-glow" autocomplete="off">
+            <p id="activationError" class="text-xs text-red-400 mb-3 hidden"></p>
+            <button onclick="activateCode()" class="w-full btn-gradient text-white font-bold py-3 rounded-xl mb-3 text-sm" id="activateBtn">验证激活码</button>
+            <p id="activateStatus" class="text-[11px] text-gray-600 mt-2"></p>
         </div>
     </div>
 
@@ -282,26 +283,57 @@
         if(todayStats.date!==today){todayStats={date:today,count:0,scripts:0};localStorage.setItem('todayStats',JSON.stringify(todayStats));}
         updateStatsDisplay(); renderHistory();
 
-        // ============ 每日配额 ============
-        const DAILY_LIMIT=3;
-        function getQuotaKey(){return 'douyin_quota_'+new Date().toISOString().slice(0,10);}
-        function getQuotaUsed(){return parseInt(localStorage.getItem(getQuotaKey())||'0');}
-        function hasCustomKey(){return !!document.getElementById('apiKey').value.trim();}
-        function checkQuota(){
-            if(hasCustomKey())return true;
-            if(!hasBackend)return true;
-            return getQuotaUsed()<DAILY_LIMIT;
+        // 激活码 / Token 管理
+        let authToken = localStorage.getItem('foxToken') || '';
+        let codeInfo = JSON.parse(localStorage.getItem('foxCodeInfo')||'null');
+        function getFingerprint() {
+          const fp = [navigator.userAgent, screen.width+'x'+screen.height, Intl.DateTimeFormat().resolvedOptions().timeZone].join('|');
+          return btoa(fp).replace(/[^a-zA-Z0-9]/g,'').substring(0,32);
         }
-        function useQuota(){if(hasCustomKey()||!hasBackend)return;const k=getQuotaKey();localStorage.setItem(k,(parseInt(localStorage.getItem(k)||'0')+1)+'');updateQuotaDisplay();}
+        function saveAuth(token, info) {
+          authToken = token;
+          codeInfo = info;
+          localStorage.setItem('foxToken', token);
+          localStorage.setItem('foxCodeInfo', JSON.stringify(info));
+          updateQuotaDisplay();
+          document.getElementById('quotaModal').classList.add('hidden');
+        }
+        function clearAuth() {
+          authToken = '';
+          codeInfo = null;
+          localStorage.removeItem('foxToken');
+          localStorage.removeItem('foxCodeInfo');
+          updateQuotaDisplay();
+        }
+
+        // ============ 激活码配额 ============
+        function checkQuota(){
+            if(authToken && codeInfo) {
+                if(codeInfo.type === 'unlimited') return true;
+                return codeInfo.remaining > 0 || codeInfo.remaining === '无限次';
+            }
+            return false; // 未激活
+        }
         function updateQuotaDisplay(){
-            const used=getQuotaUsed(),remain=DAILY_LIMIT-used,pct=(remain/DAILY_LIMIT)*100;
-            document.getElementById('quotaLabel').textContent=`剩余 ${remain}/${DAILY_LIMIT} 次`;
-            document.getElementById('quotaLabel').className=remain>0?'text-[11px] text-green-400 font-medium':'text-[11px] text-red-400 font-medium';
-            const fill=document.getElementById('quotaFill');
-            fill.style.width=pct+'%';
-            fill.style.background=remain>0?'linear-gradient(90deg,#22c55e,#4ade80)':'#ef4444';
-            const btn=document.getElementById('generateBtn');
-            if(remain<=0&&!hasCustomKey()&&hasBackend){btn.classList.add('btn-disabled');btn.querySelector('span').textContent='今日次数已用完';}else{btn.classList.remove('btn-disabled');btn.querySelector('span').textContent='生成 5 条爆款脚本';}
+            const remainEl = document.getElementById('quotaLabel');
+            const fill = document.getElementById('quotaFill');
+            const btn = document.getElementById('generateBtn');
+            if(authToken && codeInfo) {
+                const remain = codeInfo.type === 'unlimited' ? '∞' : codeInfo.remaining;
+                remainEl.textContent = `剩余 ${remain} 次`;
+                remainEl.className = 'text-[11px] text-green-400 font-medium';
+                fill.style.width = '100%';
+                fill.style.background = 'linear-gradient(90deg,#22c55e,#4ade80)';
+                btn.classList.remove('btn-disabled');
+                btn.querySelector('span').textContent = '生成 5 条爆款脚本';
+            } else {
+                remainEl.textContent = '未激活';
+                remainEl.className = 'text-[11px] text-yellow-400 font-medium';
+                fill.style.width = '30%';
+                fill.style.background = '#facc15';
+                btn.classList.add('btn-disabled');
+                btn.querySelector('span').textContent = '请先激活使用权限';
+            }
         }
         updateQuotaDisplay();
 
@@ -310,11 +342,6 @@
             if(r.ok||r.status===405){hasBackend=true;document.getElementById('backendStatus').textContent='AI服务在线';document.getElementById('backendStatus').classList.add('text-green-400');updateQuotaDisplay();}
             else throw new Error();
         }).catch(()=>{document.getElementById('backendStatus').textContent='演示模式（未部署后端）';});
-
-        // 加载本地Key
-        const savedKey=localStorage.getItem('deepseekApiKey');
-        if(savedKey){document.getElementById('apiKey').value=savedKey;updateQuotaDisplay();}
-        document.getElementById('apiKey').addEventListener('input',updateQuotaDisplay);
 
         // ============ UI ============
         function toggleApiPanel(){const p=document.getElementById('apiPanel'),a=document.getElementById('apiArrow');p.classList.toggle('open');a.style.transform=p.classList.contains('open')?'rotate(180deg)':'';}
@@ -331,10 +358,28 @@
             const customKey=document.getElementById('apiKey').value.trim();
 
             if(!industry||!sellingPoint){showToast('请填写行业和产品卖点','error');return;}
-            if(document.getElementById('saveApiKey').checked&&customKey){localStorage.setItem('deepseekApiKey',customKey);}
 
-            // 配额检查
-            if(!checkQuota()){document.getElementById('quotaModal').classList.remove('hidden');return;}
+            if(!authToken || !codeInfo){
+                document.getElementById('quotaModalTitle').textContent = '请输入激活码';
+                document.getElementById('quotaModalDesc').textContent = '获取激活码后即可开始使用';
+                document.getElementById('activateBtn').textContent = '验证激活码';
+                document.getElementById('activateStatus').textContent = '';
+                document.getElementById('activationInput').value = '';
+                document.getElementById('activationError').classList.add('hidden');
+                document.getElementById('quotaModal').classList.remove('hidden');
+                return;
+            }
+
+            if(codeInfo.type !== 'unlimited' && codeInfo.remaining <= 0){
+                document.getElementById('quotaModalTitle').textContent = '次数已用完';
+                document.getElementById('quotaModalDesc').textContent = '当前激活码次数已用完，请获取新码';
+                document.getElementById('activateBtn').textContent = '输入新激活码';
+                document.getElementById('activateStatus').textContent = '';
+                document.getElementById('activationInput').value = '';
+                document.getElementById('activationError').classList.add('hidden');
+                document.getElementById('quotaModal').classList.remove('hidden');
+                return;
+            }
 
             const btn=document.getElementById('generateBtn');
             const orig=btn.innerHTML;
@@ -343,26 +388,48 @@
 
             try{
                 let scripts;
-                if(hasBackend&&!customKey){
-                    scripts=await callBackend(industry,sellingPoint,targetAudience,duration,formula);
-                }else if(customKey){
-                    scripts=await callDeepSeekDirect(industry,sellingPoint,targetAudience,duration,formula,customKey);
-                }else{
-                    await new Promise(r=>setTimeout(r,1200));
-                    scripts=generateDemoScripts(industry,sellingPoint,targetAudience,duration,formula);
+                if(hasBackend && customKey){
+                    scripts = await callDeepSeekDirect(industry,sellingPoint,targetAudience,duration,formula,customKey);
+                } else {
+                    scripts = await callBackend(industry,sellingPoint,targetAudience,duration,formula);
                 }
                 currentScripts=scripts;renderScripts(scripts);addToHistory(industry,sellingPoint,formula||'智能匹配');
-                todayStats.count++;todayStats.scripts+=5;localStorage.setItem('todayStats',JSON.stringify(todayStats));useQuota();updateStatsDisplay();
+                todayStats.count++;todayStats.scripts+=5;localStorage.setItem('todayStats',JSON.stringify(todayStats));updateStatsDisplay();
                 showToast('生成成功！','success');
-            }catch(err){showToast('生成失败：'+err.message,'error');}
+            }catch(err){
+                if(err.message === 'NEED_ACTIVATION'){
+                    clearAuth();
+                    document.getElementById('quotaModalTitle').textContent = '请重新激活';
+                    document.getElementById('quotaModalDesc').textContent = '激活码已失效，请获取新码';
+                    document.getElementById('activateBtn').textContent = '验证激活码';
+                    document.getElementById('activationInput').value = '';
+                    document.getElementById('activationError').classList.add('hidden');
+                    document.getElementById('quotaModal').classList.remove('hidden');
+                    updateQuotaDisplay();
+                } else {
+                    showToast('生成失败：'+err.message,'error');
+                }
+            }
             finally{btn.innerHTML=orig;btn.disabled=false;btn.classList.remove('opacity-80');}
         }
 
         // 后端代理
         async function callBackend(industry,sellingPoint,targetAudience,duration,formula){
-            const res=await fetch('/api/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({industry,sellingPoint,targetAudience,duration,formula})});
-            if(!res.ok){const e=await res.json().catch(()=>({}));throw new Error(e.error||'服务繁忙');}
+            const headers = {'Content-Type':'application/json'};
+            if(authToken) headers['Authorization'] = 'Bearer ' + authToken;
+            const res=await fetch('/api/generate',{method:'POST',headers,body:JSON.stringify({industry,sellingPoint,targetAudience,duration,formula})});
+            if(!res.ok){
+                const e=await res.json().catch(()=>({}));
+                if(e.needActivation) throw new Error('NEED_ACTIVATION');
+                throw new Error(e.error||'服务繁忙');
+            }
             const data=await res.json();
+            if(typeof data.remaining !== 'undefined' && codeInfo) {
+                codeInfo.remaining = data.remaining;
+                codeInfo.type = data.codeType || codeInfo.type;
+                localStorage.setItem('foxCodeInfo', JSON.stringify(codeInfo));
+                updateQuotaDisplay();
+            }
             return parseScripts(data.choices[0].message.content);
         }
 
@@ -453,7 +520,7 @@
                         </div>
                         ${s.tip?`<div class="mt-2 pt-2 border-t border-white/5"><div class="flex items-start gap-2 text-[11px] text-gray-500"><i class="fas fa-video mt-0.5 text-gray-600 text-[10px]"></i><span>${s.tip}</span></div></div>`:''}
                     </div>`:`<div class="text-gray-300 text-sm leading-relaxed whitespace-pre-line">${s.content||''}</div>`}
-                </div>`).join('');
+                </div><div class="mt-3 pt-2 border-t border-white/5 text-right"><span class="text-[10px] text-gray-600">— Fox脚本 AI生成</span></div>`).join('');
             r.classList.remove('hidden');r.scrollIntoView({behavior:'smooth',block:'start'});
         }
 
@@ -489,8 +556,32 @@
         // ============ PWA ============
         if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js').catch(()=>{});}
 
-        // ============ 配额模态 ============
-        function copyWechat(){navigator.clipboard.writeText('iiixh_').then(()=>{showToast('微信号已复制：iiixh_','success');closeQuotaModal();}).catch(()=>showToast('复制失败：iiixh_','error'));}
+        // ============ 激活码相关 ============
+        async function activateCode(){
+            const code = document.getElementById('activationInput').value.trim();
+            if(!code){document.getElementById('activationError').textContent='请输入激活码';document.getElementById('activationError').classList.remove('hidden');return;}
+            const btn = document.getElementById('activateBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<div class="loading-dots flex items-center gap-1 justify-center"><span class="w-2 h-2 bg-white rounded-full"></span><span class="w-2 h-2 bg-white rounded-full"></span><span class="w-2 h-2 bg-white rounded-full"></span></div>';
+            document.getElementById('activationError').classList.add('hidden');
+            try{
+                const fp = getFingerprint();
+                const res = await fetch('/api/activate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code,fingerprint:fp})});
+                const data = await res.json();
+                if(!res.ok) throw new Error(data.error||'验证失败');
+                saveAuth(data.token, {type:data.type, remaining:data.remaining, maxUses:data.maxUses, expiresAt:data.expiresAt});
+                document.getElementById('activateStatus').textContent = data.type==='unlimited'?'无限次已激活':'激活成功，剩余 '+data.remaining+' 次';
+                document.getElementById('activateStatus').style.color = '#4ade80';
+                showToast('激活成功！','success');
+                setTimeout(()=>document.getElementById('quotaModal').classList.add('hidden'),1500);
+            }catch(err){
+                document.getElementById('activationError').textContent = err.message;
+                document.getElementById('activationError').classList.remove('hidden');
+            }finally{
+                btn.disabled = false;
+                btn.innerHTML = '验证激活码';
+            }
+        }
         function closeQuotaModal(){document.getElementById('quotaModal').classList.add('hidden');}
         document.addEventListener('keydown',e=>{if(e.key==='Escape')closeQuotaModal();});
 

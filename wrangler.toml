@@ -1,0 +1,6 @@
+name = "douyin-script-tool"
+compatibility_date = "2025-08-01"
+
+[[kv_namespaces]]
+binding = "SCRIPT_TOOL_KV"
+id = "0f59fbe49e93485d9fa63eb5fb85e47b"

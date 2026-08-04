@@ -5,7 +5,7 @@ export async function onRequest(context) {
   const corsHeaders = {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
   };
 
   if (request.method === "OPTIONS") {
@@ -14,30 +14,74 @@ export async function onRequest(context) {
 
   if (request.method !== "POST") {
     return new Response(JSON.stringify({ error: "Method not allowed" }), {
-      status: 405,
-      headers: { "Content-Type": "application/json", ...corsHeaders },
+      status: 405, headers: { "Content-Type": "application/json", ...corsHeaders },
     });
   }
 
-  const apiKey = env.DEEPSEEK_API_KEY;
-  if (!apiKey) {
-    return new Response(
-      JSON.stringify({ error: "服务端未配置 API Key", detail: "请在 Cloudflare Pages 设置环境变量 DEEPSEEK_API_KEY" }),
-      { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
-    );
+  // --- Token validation ---
+  const authHeader = request.headers.get("Authorization") || "";
+  let token = authHeader.replace("Bearer ", "");
+  let codeData = null;
+  let code = null;
+
+  if (token) {
+    const tokenData = await env.SCRIPT_TOOL_KV.get(`token:${token}`, "json");
+    if (tokenData) {
+      code = tokenData.code;
+      codeData = await env.SCRIPT_TOOL_KV.get(`code:${code}`, "json");
+    }
   }
 
+  // If no valid token, check if user passed activation code directly
   let body;
   try { body = await request.json(); } catch {
-    return new Response(JSON.stringify({ error: "请求格式错误" }), {
+    return new Response(JSON.stringify({ error: "请求格式错误", needActivation: true }), {
       status: 400, headers: { "Content-Type": "application/json", ...corsHeaders },
     });
   }
 
-  const { industry, sellingPoint, targetAudience, duration, formula } = body;
+  const { industry, sellingPoint, targetAudience, duration, formula, activationCode } = body;
+
+  // Direct activation code in generate request (fallback)
+  if (!codeData && activationCode) {
+    const normalized = activationCode.toUpperCase().replace(/\s/g, "");
+    codeData = await env.SCRIPT_TOOL_KV.get(`code:${normalized}`, "json");
+    code = normalized;
+  }
+
+  // No valid code at all
+  if (!codeData || !codeData.active) {
+    return new Response(JSON.stringify({ error: "请先激活使用权限", needActivation: true }), {
+      status: 401, headers: { "Content-Type": "application/json", ...corsHeaders },
+    });
+  }
+
+  // Check expiry
+  if (codeData.expiresAt && new Date(codeData.expiresAt) < new Date()) {
+    return new Response(JSON.stringify({ error: "激活码已过期" }), {
+      status: 403, headers: { "Content-Type": "application/json", ...corsHeaders },
+    });
+  }
+
+  // Check quota
+  if (codeData.type === "standard" && codeData.used >= codeData.maxUses) {
+    return new Response(JSON.stringify({ error: "使用次数已用完", needActivation: true }), {
+      status: 403, headers: { "Content-Type": "application/json", ...corsHeaders },
+    });
+  }
+
+  // Validate input
   if (!industry || !sellingPoint) {
     return new Response(JSON.stringify({ error: "请填写行业和产品卖点" }), {
       status: 400, headers: { "Content-Type": "application/json", ...corsHeaders },
+    });
+  }
+
+  // Call DeepSeek
+  const apiKey = env.DEEPSEEK_API_KEY;
+  if (!apiKey) {
+    return new Response(JSON.stringify({ error: "服务端未配置 API Key" }), {
+      status: 500, headers: { "Content-Type": "application/json", ...corsHeaders },
     });
   }
 
@@ -78,7 +122,19 @@ export async function onRequest(context) {
       });
     }
 
+    // Deduct from quota if standard
+    if (codeData.type === "standard") {
+      codeData.used = (codeData.used || 0) + 1;
+      await env.SCRIPT_TOOL_KV.put(`code:${code}`, JSON.stringify(codeData));
+    }
+
     const data = await dsResp.json();
+
+    // Inject remaining info
+    const remaining = codeData.type === "unlimited" ? -1 : (codeData.maxUses - codeData.used);
+    data.remaining = remaining;
+    data.codeType = codeData.type;
+
     return new Response(JSON.stringify(data), {
       status: 200, headers: { "Content-Type": "application/json", ...corsHeaders },
     });
