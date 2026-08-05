@@ -279,7 +279,7 @@
         // ============ 状态 ============
         let currentScripts=[], history=JSON.parse(localStorage.getItem('scriptHistory')||'[]');
         let todayStats=JSON.parse(localStorage.getItem('todayStats')||'{"date":"","count":0,"scripts":0}');
-        let hasBackend=false;
+        let hasBackend=true;
         const today=new Date().toDateString();
         if(todayStats.date!==today){todayStats={date:today,count:0,scripts:0};localStorage.setItem('todayStats',JSON.stringify(todayStats));}
         updateStatsDisplay(); renderHistory();
@@ -360,10 +360,10 @@
         updateQuotaDisplay();
 
         // 检测后端
-        fetch('/api/generate',{method:'OPTIONS'}).then(r=>{
+        fetch('/api/generate',{method:'OPTIONS'}).then(function(r){
             if(r.ok||r.status===405){hasBackend=true;document.getElementById('backendStatus').textContent='AI服务在线';document.getElementById('backendStatus').style.color='#059669';updateQuotaDisplay();}
-            else throw new Error();
-        }).catch(()=>{document.getElementById('backendStatus').textContent='演示模式（未部署后端）';});
+            else{hasBackend=false;document.getElementById('backendStatus').textContent='演示模式';}
+        }).catch(function(){hasBackend=false;document.getElementById('backendStatus').textContent='演示模式';});
 
         // ============ UI ============
         function toggleApiPanel(){const p=document.getElementById('apiPanel'),a=document.getElementById('apiArrow');p.classList.toggle('open');a.style.transform=p.classList.contains('open')?'rotate(180deg)':'';}
